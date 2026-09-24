@@ -1,0 +1,60 @@
+# JobPilot configuration. Paths are relative to this file.
+profile: profile.yaml
+database: jobpilot.db
+output_dir: applications
+
+# What you are looking for. The rule-based prefilter uses these before any
+# LLM call; Claude then scores the remaining jobs against your profile.
+preferences:
+  titles: [Machine Learning Engineer, ML Engineer, Applied Scientist]
+  keywords: [MLOps, Computer Vision]
+  exclude_keywords: [intern, internship, unpaid]
+  locations: [Seoul, Singapore, Remote]
+  remote_ok: true
+  onsite_ok: true
+  seniority: [senior, staff]
+  min_salary: null
+  salary_currency: USD
+  exclude_companies: []
+  max_job_age_days: 30
+  notes: Prefer product companies; open to relocation within APAC.
+
+llm:
+  model: claude-opus-5
+  match_effort: medium   # scoring runs on many jobs
+  tailor_effort: high    # cover letters / answers
+  max_workers: 4
+
+apply:
+  # dry_run: only write application packets to output_dir (nothing is sent)
+  # review:  open a browser, fill the form, you confirm every submit
+  # auto:    submit unattended on Greenhouse/Lever/Ashby when every required
+  #          field is filled and there is no CAPTCHA; else leave for you
+  mode: dry_run
+  min_score: 75
+  max_per_day: 10
+  company_cooldown_days: 30
+  delay_seconds: 45
+  headless: false
+
+sources:
+  # Company career boards (public APIs). Use the slug from the board URL:
+  #   boards.greenhouse.io/<slug>, jobs.lever.co/<slug>, jobs.ashbyhq.com/<slug>
+  greenhouse:
+    boards: [anthropic, stripe, airbnb]
+  lever:
+    boards: [palantir]
+  ashby:
+    boards: [openai, notion]
+  # Aggregators.
+  remotive: {enabled: true}
+  remoteok: {enabled: true}
+  arbeitnow: {enabled: false}
+  # Free key from https://developer.adzuna.com
+  adzuna:
+    countries: [us, gb, sg]
+    app_id_env: ADZUNA_APP_ID
+    app_key_env: ADZUNA_APP_KEY
+  # Key from https://oapi.saramin.co.kr
+  # saramin:
+  #   access_key_env: SARAMIN_ACCESS_KEY
