@@ -32,6 +32,10 @@ class _BoardSource(JobSource):
   def fetch_board(self, board: str) -> Iterator[Job]:
     raise NotImplementedError
 
+  def check(self, board: str) -> str:
+    """One-line health check used by `jobpilot check-boards`."""
+    return f'{sum(1 for _ in self.fetch_board(board))} jobs'
+
 
 class GreenhouseSource(_BoardSource):
   name = 'greenhouse'

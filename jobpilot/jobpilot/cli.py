@@ -90,7 +90,7 @@ def cmd_check_boards(args):
   with httpx.Client(timeout=30, follow_redirects=True) as http:
     rows = check_boards(cfg.sources, http)
   for source, board, result in rows:
-    print(f'{source:11} {board:24} {result}')
+    print(f'{source:11} {board:45} {result}')
   if not rows:
     print('no company boards configured under sources:')
 

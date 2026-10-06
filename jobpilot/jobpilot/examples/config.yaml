@@ -56,12 +56,27 @@ sources:
     boards:
       # Metrology / inspection
       - invisix        # short-wavelength semiconductor metrology (Eindhoven)
-  # Semiconductor metrology companies whose career sites run on systems
-  # JobPilot cannot read yet (keyword search via adzuna/saramin still finds
-  # some of their postings):
-  #   KLA (Workday), Nova (Comeet), Onto Innovation, Camtek,
-  #   Nearfield Instruments, ASML, Zeiss SMT, Bruker, Lasertec,
-  #   Park Systems, Auros Technology, Nextin
+  # Workday career sites: paste the career-site URL from the browser.
+  # Workday has no documented public API; JobPilot reads the JSON the
+  # career site itself uses, throttled, and searches with your
+  # titles/keywords. Applying needs a Workday account, so these jobs get
+  # application packets (or review mode), never auto-submit.
+  workday:
+    max_pages: 5           # x20 jobs per search term per site
+    sites:
+      # Metrology / inspection
+      - {url: "https://kla.wd1.myworkdayjobs.com/Search", company: KLA}
+      # Chipmakers with large metrology teams
+      - {url: "https://micron.wd1.myworkdayjobs.com/External", company: Micron}
+      # Host confirmed, site name not: open the career site, copy the URL,
+      # then run `jobpilot check-boards`.
+      # - {url: "https://lamresearch.wd1.myworkdayjobs.com/<site>", company: Lam Research}
+      # - {url: "https://thermofisher.wd5.myworkdayjobs.com/<site>", company: Thermo Fisher}
+  # Metrology companies on career systems JobPilot cannot read yet
+  # (keyword search via adzuna/saramin still finds some of their postings):
+  #   Nova (Comeet), ASML (own site), Onto Innovation, Camtek,
+  #   Nearfield Instruments, Zeiss SMT, Bruker, Lasertec, Park Systems,
+  #   Auros Technology, Nextin
   # Aggregators.
   remotive: {enabled: true}
   remoteok: {enabled: true}

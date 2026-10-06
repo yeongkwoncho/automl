@@ -7,6 +7,7 @@ import httpx
 from jobpilot.sources.ats import (AshbySource, GreenhouseSource, LeverSource,
                                   RecruiteeSource)
 from jobpilot.sources.base import JobSource
+from jobpilot.sources.workday import WorkdaySource
 from jobpilot.sources.boards import (AdzunaSource, ArbeitnowSource,
                                      RemoteOKSource, RemotiveSource,
                                      SaraminSource, env_or_value)
@@ -26,6 +27,10 @@ def build_sources(cfg: dict, http: httpx.Client) -> List[JobSource]:
     boards = (cfg.get(name) or {}).get('boards') or []
     if boards:
       sources.append(cls(http, boards))
+
+  wd = cfg.get('workday') or {}
+  if wd.get('sites'):
+    sources.append(WorkdaySource(http, wd['sites'], wd.get('max_pages', 5)))
 
   if (cfg.get('remotive') or {}).get('enabled'):
     sources.append(RemotiveSource(http, cfg['remotive'].get('limit', 100)))
@@ -61,15 +66,18 @@ def check_boards(cfg: dict, http: httpx.Client) -> List[Tuple[str, str, str]]:
   error, so wrong slugs show up before a real run.
   """
   rows = []
-  for name, cls in _BOARD_SOURCES:
-    src = cls(http, [])
-    for board in (cfg.get(name) or {}).get('boards') or []:
+  checks = [(name, cls(http, []), (cfg.get(name) or {}).get('boards'))
+            for name, cls in _BOARD_SOURCES]
+  checks.append(('workday', WorkdaySource(http, []), (cfg.get('workday') or
+                                                      {}).get('sites')))
+  for name, src, boards in checks:
+    for board in boards or []:
+      label = board if isinstance(board, str) else board.get('url', '')
       try:
-        rows.append(
-            (name, board, f'{sum(1 for _ in src.fetch_board(board))} jobs'))
+        rows.append((name, label, src.check(board)))
       except httpx.HTTPStatusError as e:
         hint = ' (wrong slug?)' if e.response.status_code == 404 else ''
-        rows.append((name, board, f'HTTP {e.response.status_code}{hint}'))
+        rows.append((name, label, f'HTTP {e.response.status_code}{hint}'))
       except (httpx.HTTPError, ValueError, KeyError) as e:
-        rows.append((name, board, f'error: {e}'))
+        rows.append((name, label, f'error: {e}'))
   return rows
