@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def _detect_ats(url: str) -> Optional[str]:
   for host, ats in (('greenhouse.io', 'greenhouse'), ('lever.co', 'lever'),
-                    ('ashbyhq.com', 'ashby')):
+                    ('ashbyhq.com', 'ashby'), ('recruitee.com', 'recruitee')):
     if host in (url or ''):
       return ats
   return None

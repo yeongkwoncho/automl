@@ -1,8 +1,9 @@
 import httpx
 
 from jobpilot.models import Preferences
-from jobpilot.sources import build_sources
-from jobpilot.sources.ats import AshbySource, GreenhouseSource, LeverSource
+from jobpilot.sources import build_sources, check_boards
+from jobpilot.sources.ats import (AshbySource, GreenhouseSource, LeverSource,
+                                  RecruiteeSource)
 from jobpilot.sources.boards import RemoteOKSource, RemotiveSource
 
 
@@ -142,3 +143,75 @@ def test_build_sources_skips_missing_keys(monkeypatch):
           }
       }, httpx.Client())
   assert [s.name for s in srcs] == ['greenhouse', 'remotive']
+
+
+def test_recruitee():
+  http = client({
+      'https://invisix.recruitee.com/api/offers/': {
+          'offers': [{
+              'id':
+                  11,
+              'slug':
+                  'sensing-calibration-architect',
+              'title':
+                  'Sensing & Calibration Architect',
+              'company_name':
+                  'Invisix',
+              'city':
+                  'Eindhoven',
+              'country':
+                  'Netherlands',
+              'location':
+                  '',
+              'remote':
+                  False,
+              'status':
+                  'published',
+              'careers_url':
+                  'https://invisix.recruitee.com/o/sensing-calibration-architect',
+              'description':
+                  '<p>Own the sensing architecture.</p>',
+              'requirements':
+                  '<ul><li>Optics</li></ul>',
+              'published_at':
+                  '2026-09-01 10:00:00 UTC',
+              'employment_type_code':
+                  'fulltime_permanent',
+              'department':
+                  'R&D'
+          }, {
+              'id': 12,
+              'slug': 'old',
+              'title': 'Closed role',
+              'status': 'closed'
+          }]
+      }
+  })
+  [j] = list(RecruiteeSource(http, ['invisix']).fetch(PREFS))
+  assert j.uid == 'recruitee:invisix/11' and j.company == 'Invisix'
+  assert j.location == 'Eindhoven, Netherlands' and j.remote is None
+  assert j.apply_url.endswith('/o/sensing-calibration-architect/c/new')
+  assert 'Own the sensing' in j.description and '- Optics' in j.description
+  assert j.posted_at.isoformat() == '2026-09-01T10:00:00+00:00'
+  assert j.tags == ['R&D'] and j.ats == 'recruitee'
+
+
+def test_check_boards():
+  http = client({
+      'https://api.lever.co/v0/postings/gausslabs': [],
+      'https://invisix.recruitee.com/api/offers/': {
+          'offers': []
+      }
+  })
+  rows = check_boards(
+      {
+          'lever': {
+              'boards': ['gausslabs', 'typo']
+          },
+          'recruitee': {
+              'boards': ['invisix']
+          }
+      }, http)
+  assert rows == [('lever', 'gausslabs', '0 jobs'),
+                  ('lever', 'typo', 'HTTP 404 (wrong slug?)'),
+                  ('recruitee', 'invisix', '0 jobs')]

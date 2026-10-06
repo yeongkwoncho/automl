@@ -39,13 +39,29 @@ apply:
 
 sources:
   # Company career boards (public APIs). Use the slug from the board URL:
-  #   boards.greenhouse.io/<slug>, jobs.lever.co/<slug>, jobs.ashbyhq.com/<slug>
+  #   boards.greenhouse.io/<slug>, jobs.lever.co/<slug>,
+  #   jobs.ashbyhq.com/<slug>, <slug>.recruitee.com
+  # Check every slug with `jobpilot check-boards`.
   greenhouse:
     boards: [anthropic, stripe, airbnb]
   lever:
-    boards: [palantir]
+    boards:
+      - palantir
+      # Metrology / inspection
+      - gausslabs      # AI for semiconductor process control (Seoul, Palo Alto)
+      - lumafield      # industrial CT inspection & metrology (Boston, SF)
   ashby:
     boards: [openai, notion]
+  recruitee:
+    boards:
+      # Metrology / inspection
+      - invisix        # short-wavelength semiconductor metrology (Eindhoven)
+  # Semiconductor metrology companies whose career sites run on systems
+  # JobPilot cannot read yet (keyword search via adzuna/saramin still finds
+  # some of their postings):
+  #   KLA (Workday), Nova (Comeet), Onto Innovation, Camtek,
+  #   Nearfield Instruments, ASML, Zeiss SMT, Bruker, Lasertec,
+  #   Park Systems, Auros Technology, Nextin
   # Aggregators.
   remotive: {enabled: true}
   remoteok: {enabled: true}

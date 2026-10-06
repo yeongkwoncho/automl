@@ -43,7 +43,8 @@ def parse_datetime(value) -> Optional[dt.datetime]:
       if value > 1e11:  # epoch millis
         value = value / 1000
       return dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
-    value = str(value).replace('Z', '+00:00')
+    # Handles '...Z' and Recruitee's '2026-09-01 10:00:00 UTC'.
+    value = re.sub(r'\s*(Z|UTC)$', '+00:00', str(value).strip())
     if re.fullmatch(r'\d+', value):
       return parse_datetime(int(value))
     parsed = dt.datetime.fromisoformat(value)

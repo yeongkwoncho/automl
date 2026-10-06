@@ -124,3 +124,37 @@ class AshbySource(_BoardSource):
           ],
           ats='ashby',
       )
+
+
+class RecruiteeSource(_BoardSource):
+  """Recruitee career sites (<board>.recruitee.com), common in the EU."""
+  name = 'recruitee'
+  API = 'https://{board}.recruitee.com/api/offers/'
+
+  def fetch_board(self, board):
+    data = self._get_json(self.API.format(board=board))
+    for j in data.get('offers', []):
+      if j.get('status') not in (None, 'published'):
+        continue
+      location = j.get('location') or ', '.join(
+          p for p in [j.get('city'), j.get('country')] if p)
+      url = j.get('careers_url') or (
+          f'https://{board}.recruitee.com/o/{j["slug"]}')
+      description = '\n\n'.join(
+          html_to_text(j.get(k, '')) for k in ('description', 'requirements'))
+      yield Job(
+          source=self.name,
+          external_id=f'{board}/{j["id"]}',
+          title=j['title'],
+          company=j.get('company_name') or board,
+          url=url,
+          apply_url=j.get('careers_apply_url') or url.rstrip('/') + '/c/new',
+          location=location,
+          remote=j.get('remote') or None,
+          description=description.strip(),
+          posted_at=parse_datetime(
+              j.get('published_at') or j.get('created_at')),
+          employment_type=j.get('employment_type_code'),
+          tags=[j['department']] if j.get('department') else [],
+          ats='recruitee',
+      )

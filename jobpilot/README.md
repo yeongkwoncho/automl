@@ -19,6 +19,7 @@
 | Greenhouse 채용 보드 | 회사별 (Stripe, Airbnb, Anthropic …) | 없음 | ✅ |
 | Lever 채용 보드 | 회사별 | 없음 | ✅ |
 | Ashby 채용 보드 | 회사별 (OpenAI, Notion …) | 없음 | ✅ |
+| Recruitee 채용 보드 | 회사별, 유럽에 많음 (Invisix …) | 없음 | review 모드만 |
 | Remotive | 글로벌 원격 | 없음 | ATS 링크일 때만 |
 | RemoteOK | 글로벌 원격 | 없음 | ATS 링크일 때만 |
 | Arbeitnow | 유럽 | 없음 | 수동 패킷 |
@@ -42,6 +43,7 @@ jobpilot init                      # config.yaml, profile.yaml 생성
 jobpilot import-resume resume.pdf --force   # 이력서에서 profile.yaml 추출 (내용 꼭 확인)
 # config.yaml에서 preferences와 sources 수정
 
+jobpilot check-boards              # 설정한 회사 보드 slug가 맞는지 확인
 jobpilot search                    # 공고 수집 + 1차 필터
 jobpilot match                     # Claude로 적합도 점수
 jobpilot apply                     # 기본값 dry_run: applications/ 폴더에 지원 패킷만 생성
@@ -92,7 +94,7 @@ jobpilot status                    # 이력 보기
 
 ```
 jobpilot/
-  sources/ats.py        Greenhouse · Lever · Ashby
+  sources/ats.py        Greenhouse · Lever · Ashby · Recruitee
   sources/boards.py     Remotive · RemoteOK · Arbeitnow · Adzuna · 사람인
   filters.py            규칙 기반 1차 필터 (직무명, 제외 키워드, 지역/원격, 게시일, 연봉)
   agent.py              이력서 추출 · 적합도 평가 · 맞춤 작성 (Claude)

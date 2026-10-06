@@ -6,12 +6,14 @@ import os
 import shutil
 import sys
 
+import httpx
 import yaml
 
 from jobpilot.agent import ProfileImporter
 from jobpilot.config import load_config, missing_profile_fields
 from jobpilot.llm import ClaudeLLM
 from jobpilot.pipeline import Pipeline
+from jobpilot.sources import check_boards
 from jobpilot.store import Store
 
 EXAMPLES = os.path.join(os.path.dirname(__file__), 'examples')
@@ -83,6 +85,16 @@ def cmd_status(args):
   store.close()
 
 
+def cmd_check_boards(args):
+  cfg = load_config(args.config)
+  with httpx.Client(timeout=30, follow_redirects=True) as http:
+    rows = check_boards(cfg.sources, http)
+  for source, board, result in rows:
+    print(f'{source:11} {board:24} {result}')
+  if not rows:
+    print('no company boards configured under sources:')
+
+
 def cmd_mark(args):
   cfg = load_config(args.config)
   store = Store(cfg.path(cfg.database))
@@ -125,6 +137,10 @@ def main(argv=None):
   p = sub.add_parser('status', help='show application history')
   p.add_argument('--status')
   p.set_defaults(func=cmd_status)
+
+  sub.add_parser('check-boards',
+                 help='verify configured company board slugs').set_defaults(
+                     func=cmd_check_boards)
 
   p = sub.add_parser('mark', help='set status after applying by hand')
   p.add_argument('uid')

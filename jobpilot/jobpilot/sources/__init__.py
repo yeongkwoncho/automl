@@ -1,10 +1,11 @@
 """Job sources and a factory that builds them from config."""
 import logging
-from typing import List
+from typing import List, Tuple
 
 import httpx
 
-from jobpilot.sources.ats import AshbySource, GreenhouseSource, LeverSource
+from jobpilot.sources.ats import (AshbySource, GreenhouseSource, LeverSource,
+                                  RecruiteeSource)
 from jobpilot.sources.base import JobSource
 from jobpilot.sources.boards import (AdzunaSource, ArbeitnowSource,
                                      RemoteOKSource, RemotiveSource,
@@ -12,14 +13,16 @@ from jobpilot.sources.boards import (AdzunaSource, ArbeitnowSource,
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['JobSource', 'build_sources']
+__all__ = ['JobSource', 'build_sources', 'check_boards']
+
+_BOARD_SOURCES = (('greenhouse', GreenhouseSource), ('lever', LeverSource),
+                  ('ashby', AshbySource), ('recruitee', RecruiteeSource))
 
 
 def build_sources(cfg: dict, http: httpx.Client) -> List[JobSource]:
   """Instantiates every source enabled in the `sources:` config section."""
   sources: List[JobSource] = []
-  for name, cls in (('greenhouse', GreenhouseSource), ('lever', LeverSource),
-                    ('ashby', AshbySource)):
+  for name, cls in _BOARD_SOURCES:
     boards = (cfg.get(name) or {}).get('boards') or []
     if boards:
       sources.append(cls(http, boards))
@@ -49,3 +52,24 @@ def build_sources(cfg: dict, http: httpx.Client) -> List[JobSource]:
     else:
       logger.warning('saramin configured but access_key missing; skipped')
   return sources
+
+
+def check_boards(cfg: dict, http: httpx.Client) -> List[Tuple[str, str, str]]:
+  """Fetches every configured company board once.
+
+  Returns (source, board, result) rows where result is a job count or the
+  error, so wrong slugs show up before a real run.
+  """
+  rows = []
+  for name, cls in _BOARD_SOURCES:
+    src = cls(http, [])
+    for board in (cfg.get(name) or {}).get('boards') or []:
+      try:
+        rows.append(
+            (name, board, f'{sum(1 for _ in src.fetch_board(board))} jobs'))
+      except httpx.HTTPStatusError as e:
+        hint = ' (wrong slug?)' if e.response.status_code == 404 else ''
+        rows.append((name, board, f'HTTP {e.response.status_code}{hint}'))
+      except (httpx.HTTPError, ValueError, KeyError) as e:
+        rows.append((name, board, f'error: {e}'))
+  return rows
