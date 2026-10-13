@@ -72,6 +72,13 @@ sources:
       # then run `jobpilot check-boards`.
       # - {url: "https://lamresearch.wd1.myworkdayjobs.com/<site>", company: Lam Research}
       # - {url: "https://thermofisher.wd5.myworkdayjobs.com/<site>", company: Thermo Fisher}
+  # Eightfold AI career sites (job URLs look like
+  # <host>/careers/job/<id>?domain=<domain>). Also undocumented JSON,
+  # throttled; applying happens on the company site (packets / review).
+  eightfold:
+    max_pages: 10          # x10 jobs per search term per site
+    sites:
+      - {url: "https://careers.qualcomm.com", domain: qualcomm.com, company: Qualcomm}
   # Metrology companies on career systems JobPilot cannot read yet
   # (keyword search via adzuna/saramin still finds some of their postings):
   #   Nova (Comeet), ASML (own site), Onto Innovation, Camtek,

@@ -21,15 +21,17 @@
 | Ashby 채용 보드 | 회사별 (OpenAI, Notion …) | 없음 | ✅ |
 | Recruitee 채용 보드 | 회사별, 유럽에 많음 (Invisix …) | 없음 | review 모드만 |
 | Workday 채용 사이트 | 회사별, 대기업 (KLA, Micron …) | 없음 | 수동 패킷 (Workday 계정 필요) |
+| Eightfold 채용 사이트 | 회사별, 대기업 (Qualcomm …) | 없음 | 수동 패킷 |
 | Remotive | 글로벌 원격 | 없음 | ATS 링크일 때만 |
 | RemoteOK | 글로벌 원격 | 없음 | ATS 링크일 때만 |
 | Arbeitnow | 유럽 | 없음 | 수동 패킷 |
 | Adzuna | 미국·영국·독일·싱가포르 등 약 20개국 | 무료 키 | 수동 패킷 |
 | 사람인 | 한국 | API 키 | 수동 패킷 |
 
-Workday는 공식 공개 API가 없어서, 채용 사이트가 브라우저에서 쓰는 JSON 경로를 읽습니다.
+Workday와 Eightfold는 공식 공개 API가 없어서, 채용 사이트가 브라우저에서 쓰는 JSON 경로를 읽습니다.
 로그인이 필요 없는 공개 공고만 읽고, 설정에 넣은 사이트만 요청 간격을 두고 조회합니다.
-Workday 쪽에서 경로를 바꾸면 동작하지 않을 수 있습니다.
+해당 플랫폼이 경로를 바꾸면 동작하지 않을 수 있습니다. Eightfold는 구형(`/api/apply/v2`)과
+신형(`/api/pcsx`) 두 가지가 있어 사이트마다 자동으로 맞는 쪽을 씁니다.
 
 **LinkedIn, Indeed, Glassdoor는 일부러 넣지 않았습니다.** 이용약관에서 스크래핑과 자동 지원을
 금지하고 있어서, 계정이 정지될 수 있습니다. 대신 이 사이트들에 올라오는 공고 대부분은 원래
@@ -101,6 +103,7 @@ jobpilot status                    # 이력 보기
 jobpilot/
   sources/ats.py        Greenhouse · Lever · Ashby · Recruitee
   sources/workday.py    Workday 채용 사이트
+  sources/eightfold.py  Eightfold 채용 사이트
   sources/boards.py     Remotive · RemoteOK · Arbeitnow · Adzuna · 사람인
   filters.py            규칙 기반 1차 필터 (직무명, 제외 키워드, 지역/원격, 게시일, 연봉)
   agent.py              이력서 추출 · 적합도 평가 · 맞춤 작성 (Claude)

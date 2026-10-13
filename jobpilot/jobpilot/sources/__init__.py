@@ -7,6 +7,7 @@ import httpx
 from jobpilot.sources.ats import (AshbySource, GreenhouseSource, LeverSource,
                                   RecruiteeSource)
 from jobpilot.sources.base import JobSource
+from jobpilot.sources.eightfold import EightfoldSource
 from jobpilot.sources.workday import WorkdaySource
 from jobpilot.sources.boards import (AdzunaSource, ArbeitnowSource,
                                      RemoteOKSource, RemotiveSource,
@@ -31,6 +32,9 @@ def build_sources(cfg: dict, http: httpx.Client) -> List[JobSource]:
   wd = cfg.get('workday') or {}
   if wd.get('sites'):
     sources.append(WorkdaySource(http, wd['sites'], wd.get('max_pages', 5)))
+  ef = cfg.get('eightfold') or {}
+  if ef.get('sites'):
+    sources.append(EightfoldSource(http, ef['sites'], ef.get('max_pages', 10)))
 
   if (cfg.get('remotive') or {}).get('enabled'):
     sources.append(RemotiveSource(http, cfg['remotive'].get('limit', 100)))
@@ -68,8 +72,8 @@ def check_boards(cfg: dict, http: httpx.Client) -> List[Tuple[str, str, str]]:
   rows = []
   checks = [(name, cls(http, []), (cfg.get(name) or {}).get('boards'))
             for name, cls in _BOARD_SOURCES]
-  checks.append(('workday', WorkdaySource(http, []), (cfg.get('workday') or
-                                                      {}).get('sites')))
+  for name, cls in (('workday', WorkdaySource), ('eightfold', EightfoldSource)):
+    checks.append((name, cls(http, []), (cfg.get(name) or {}).get('sites')))
   for name, src, boards in checks:
     for board in boards or []:
       label = board if isinstance(board, str) else board.get('url', '')
