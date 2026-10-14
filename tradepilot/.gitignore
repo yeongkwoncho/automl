@@ -1,0 +1,7 @@
+*.db
+journal/
+strategies/
+prices/
+/config.yaml
+/strategy.yaml
+*.egg-info/

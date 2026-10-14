@@ -1,0 +1,17 @@
+database: tradepilot.db
+strategy_file: strategy.yaml          # imported as v1 on first use
+strategy_out: strategies/active.yaml  # active strategy, rewritten after reviews
+journal_dir: journal                  # one markdown review per day
+
+prices:
+  provider: csv        # csv: prices/<symbol>.csv  |  yfinance (pip install yfinance)
+  dir: prices
+
+# none:  every strategy change waits for `tradepilot strategy approve <v>`
+# stats: bounded, statistics-driven weight changes apply automatically for
+#        the next session; Claude's suggestions still wait for approval
+# all:   Claude's param suggestions apply automatically too
+auto_approve: stats
+
+model: claude-opus-5
+effort: high

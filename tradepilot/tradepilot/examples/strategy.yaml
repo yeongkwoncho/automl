@@ -1,0 +1,55 @@
+# Your trading rules. Decisions cite rule ids in --reasons / --against, so
+# each rule's track record can be measured. Replace these examples with
+# the rules you actually use; ids must stay stable once you log with them.
+name: swing-v1
+params:
+  win_threshold_pct: 1.0     # a move >= this counts as a real gain (> costs)
+  loss_threshold_pct: 1.0
+  horizons: [0, 1, 5]        # same-day close, next day, 5 trading days
+  primary_horizon: 5         # horizon used for rule statistics/learning
+  min_samples: 20            # decisive outcomes before a rule is adjusted
+  max_weight_change: 0.25    # at most +/-25% weight change per review
+  min_weight: 0.1
+  max_weight: 3.0
+  disable_below: 0.35        # disable after 2*min_samples below this hit rate
+  lookback_days: 120         # stats window (0 = all history)
+rules:
+  - id: breakout_20d
+    kind: entry
+    description: 종가가 최근 20일 고가를 돌파하면 매수 후보
+    weight: 1.0
+    params: {lookback: 20}
+  - id: volume_surge
+    kind: entry
+    description: 거래량이 20일 평균의 2배 이상이면 가산점
+    weight: 1.0
+    params: {ratio: 2.0}
+  - id: pullback_ma20
+    kind: entry
+    description: 상승 추세(20일선 위)에서 20일선 부근 눌림이면 매수 후보
+    weight: 1.0
+    params: {max_distance_pct: 2.0}
+  - id: overextended
+    kind: filter
+    description: 20일선 대비 이격이 너무 크면 매수하지 않음
+    weight: 1.0
+    params: {max_gap_pct: 10.0}
+  - id: weak_market
+    kind: filter
+    description: 지수가 20일선 아래면 신규 매수하지 않음
+    weight: 1.0
+  - id: low_liquidity
+    kind: filter
+    description: 일 거래대금이 기준 미만이면 매수하지 않음
+    weight: 1.0
+    params: {min_value_krw_100m: 50}
+  - id: stop_loss
+    kind: exit
+    description: 매수가 대비 손실이 기준에 닿으면 매도
+    weight: 1.0
+    params: {stop_pct: 5.0}
+  - id: take_profit
+    kind: exit
+    description: 목표 수익률 도달 시 일부/전부 매도
+    weight: 1.0
+    params: {target_pct: 10.0}
