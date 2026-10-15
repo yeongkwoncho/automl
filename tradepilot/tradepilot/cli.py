@@ -15,8 +15,6 @@ from tradepilot.learn import rule_stats, stats_window_start
 from tradepilot.llm import DEFAULT_MODEL, ClaudeLLM
 from tradepilot.models import Decision, Strategy
 from tradepilot.prices import build_prices
-from tradepilot.research import (build_dataset, research_report, write_csv,
-                                 write_template)
 from tradepilot.review import Reviewer
 from tradepilot.store import Store
 
@@ -272,45 +270,6 @@ def cmd_brief(args):
   store.close()
 
 
-def cmd_export(args):
-  cfg = load_config(args.config)
-  store = open_store(cfg)
-  rows = build_dataset(store, store.active_strategy())
-  store.close()
-  out = args.out or cfg.path('research/dataset.csv')
-  os.makedirs(os.path.dirname(out) or '.', exist_ok=True)
-  print(f'wrote {write_csv(rows, out)} decisions -> {out}')
-
-
-def cmd_research(args):
-  cfg = load_config(args.config)
-  store = open_store(cfg)
-  s = store.active_strategy()
-  rows = build_dataset(store, s)
-  store.close()
-  d = cfg.path('research')
-  os.makedirs(d, exist_ok=True)
-  write_csv(rows, os.path.join(d, 'dataset.csv'))
-  path = os.path.join(d, f'report-{dt.date.today().isoformat()}.md')
-  with open(path, 'w') as f:
-    f.write(research_report(rows, s, args.min_bucket))
-  print(f'dataset: {os.path.join(d, "dataset.csv")}\nreport:  {path}')
-
-
-def cmd_template(args):
-  cfg = load_config(args.config)
-  store = open_store(cfg)
-  s = store.active_strategy()
-  store.close()
-  day = _parse_date(args.date)
-  out = args.out or cfg.path(f'decisions-{day.isoformat()}.csv')
-  if os.path.exists(out):
-    sys.exit(f'{out} exists')
-  example = write_template(out, s, _split(args.signals) or None, day)
-  print(f'wrote {out} (header only). Fill one row per decision, including '
-        f'passes, then: tradepilot import {out}\n\nexample rows:\n{example}')
-
-
 def main(argv=None):
   parser = argparse.ArgumentParser(
       prog='tradepilot',
@@ -352,20 +311,6 @@ def main(argv=None):
   sub.add_parser(
       'brief',
       help='strategy for the next session').set_defaults(func=cmd_brief)
-
-  p = sub.add_parser('export', help='flat research dataset (CSV)')
-  p.add_argument('--out')
-  p.set_defaults(func=cmd_export)
-
-  p = sub.add_parser('research', help='dataset + strategy research report')
-  p.add_argument('--min-bucket', type=int, default=5)
-  p.set_defaults(func=cmd_research)
-
-  p = sub.add_parser('template', help='CSV to log a session\'s decisions')
-  p.add_argument('--date')
-  p.add_argument('--out')
-  p.add_argument('--signals', help='signal names, comma separated')
-  p.set_defaults(func=cmd_template)
 
   p = sub.add_parser('strategy', help='inspect/approve strategy versions')
   p.add_argument('action',

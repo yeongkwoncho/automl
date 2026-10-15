@@ -113,15 +113,6 @@ class Store:
                           (day.isoformat(),)).fetchone()
     return json.loads(row[0]) if row else None
 
-  def decision_reviews(self) -> dict:
-    """Latest LLM grade per decision id (a decision is reviewed on its day
-    and again when later outcomes arrive; the latest review wins)."""
-    out = {}
-    for (data,) in self.db.execute('SELECT data FROM reviews ORDER BY date'):
-      for r in (json.loads(data).get('llm') or {}).get('decision_reviews', []):
-        out[r['decision_id']] = r
-    return out
-
   def recent_lessons(self, limit: int = 10) -> List[str]:
     rows = self.db.execute(
         'SELECT data FROM reviews ORDER BY date DESC LIMIT ?', (limit,))
