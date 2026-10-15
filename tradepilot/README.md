@@ -86,6 +86,32 @@ tradepilot brief           # 활성 규칙(가중치 순), 이번에 바뀐 점,
 tradepilot stats           # 규칙별 n / good / bad / 적중률 / 평균 수익률
 ```
 
+### 4. 전략 연구용 데이터 누적
+
+```bash
+tradepilot template          # 오늘 판단을 적을 CSV 양식 (헤더만; 예시는 화면에 출력)
+tradepilot import decisions-2026-10-15.csv
+tradepilot research          # research/dataset.csv + research/report-날짜.md
+tradepilot export --out my.csv
+```
+
+`research/dataset.csv`는 판단 1건이 1행인 연구용 데이터셋입니다. pandas, 엑셀, 백테스터에 바로 넣을 수 있습니다.
+- 판단 정보: 날짜, 요일, 시각, 종목, 판단, 가격, 확신도, 전략 버전
+- 근거: 근거 규칙과 반대 규칙
+- 지표: 모든 `signal_*` 값
+- 결과: 0·1·5일 수익률과 good/bad 라벨, 기간 중 최대 상승과 최대 하락
+- Claude 평가: 근거 품질, 결과의 원인(실력/운)
+
+`research` 리포트는 다음 전략을 고칠 때 볼 질문에 답합니다.
+1. 판단 유형별 성과. pass의 평균 수익률이 buy보다 높으면 필터가 너무 엄격하다는 신호입니다.
+2. 신호 구간별 성과. 예: `vol_ratio`가 어느 구간일 때 수익이 났는지
+3. 규칙 조합별 성과
+4. 가장 비쌌던 pass(놓친 기회)
+5. 근거 품질과 결과. 규칙대로 했을 때 실제로 성과가 더 좋았는지
+6. 확신도 보정
+
+결과가 확정된 판단이 적으면 분석을 보류하고 기록을 계속하라고 안내합니다.
+
 ### 전략 버전 관리
 
 ```bash
