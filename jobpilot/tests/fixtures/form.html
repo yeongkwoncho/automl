@@ -1,0 +1,18 @@
+<!doctype html>
+<html><body>
+<h1>Apply: ML Engineer</h1>
+<form id="f" onsubmit="event.preventDefault(); document.body.innerHTML='<h2>Thank you for applying!</h2>' + '<pre id=out>' + JSON.stringify(Object.fromEntries(new FormData(this))) + '</pre>';">
+  <label for="fn">First Name *</label><input id="fn" name="first_name" required>
+  <label for="ln">Last Name *</label><input id="ln" name="last_name" required>
+  <label>Email <input name="email" type="email" required></label>
+  <input name="phone" aria-label="Phone">
+  <div class="field"><label>Resume/CV</label><input type="file" name="resume"></div>
+  <label for="cl">Cover Letter</label><textarea id="cl" name="cover"></textarea>
+  <label for="yrs">How many years of PyTorch experience? *</label><input id="yrs" name="yrs" required>
+  <label for="g">Gender</label>
+  <select id="g" name="gender"><option>Select...</option><option>Male</option><option>Female</option><option>Decline to self-identify</option></select>
+  <label><input type="checkbox" name="consent" class="consent"> I agree to the privacy policy</label>
+  <input type="hidden" name="token" value="abc">
+  <button type="submit">Submit application</button>
+</form>
+</body></html>
