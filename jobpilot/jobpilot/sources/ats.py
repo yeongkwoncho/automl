@@ -9,7 +9,7 @@ from typing import Iterator, List
 import httpx
 
 from jobpilot.models import Job, Preferences
-from jobpilot.sources.base import JobSource
+from jobpilot.sources.base import JobSource, describe_error
 from jobpilot.textutil import html_to_text, parse_datetime
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,8 @@ class _BoardSource(JobSource):
       try:
         yield from self.fetch_board(board)
       except (httpx.HTTPError, ValueError, KeyError) as e:
-        logger.warning('%s board %r failed: %s', self.name, board, e)
+        logger.warning('%s board %r failed: %s', self.name, board,
+                       describe_error(e))
 
   def fetch_board(self, board: str) -> Iterator[Job]:
     raise NotImplementedError

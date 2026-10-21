@@ -82,3 +82,14 @@ def test_auto_stops_on_required_consent(tmp_path, profile, prefs, monkeypatch):
   form.write_text(html)
   out = run(tmp_path, profile, prefs, 'auto', url='file://' + str(form))
   assert out.status == 'needs_manual' and 'privacy policy' in out.detail
+
+
+def test_missing_chromium_is_setup_error(tmp_path, profile, prefs):
+  job = make_job(apply_url=FORM)
+  packet = TailoredApplication(cover_letter='x',
+                               resume_highlights=[],
+                               answers=[])
+  applier = browser.BrowserApplier(mode='review',
+                                   executable_path=str(tmp_path / 'nochrome'))
+  with pytest.raises(browser.BrowserSetupError):
+    applier.apply(job, packet, profile, str(tmp_path), lambda qs: [])

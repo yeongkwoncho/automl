@@ -51,7 +51,8 @@ jobpilot import-resume resume.pdf --force   # 이력서에서 profile.yaml 추�
 # config.yaml에서 preferences와 sources 수정
 
 jobpilot check-boards              # 설정한 회사 보드 slug가 맞는지 확인
-jobpilot search                    # 공고 수집 + 1차 필터
+jobpilot search                    # 공고 수집 + 1차 필터 (소스별 집계 출력)
+jobpilot jobs                      # 수집된 공고 목록 (--rejected: 걸러진 이유)
 jobpilot match                     # Claude로 적합도 점수
 jobpilot apply                     # 기본값 dry_run: applications/ 폴더에 지원 패킷만 생성
 jobpilot status                    # 이력 보기
@@ -67,7 +68,7 @@ jobpilot status                    # 이력 보기
 
 | 모드 | 동작 |
 |---|---|
-| `dry_run` (기본) | 아무것도 보내지 않습니다. 포지션마다 `applications/<날짜-회사-직무>/`에 `APPLICATION.md`(평가, 커버레터, 답변), `cover_letter.txt`, `data.json`을 만듭니다. |
+| `dry_run` (기본) | 아무것도 보내지 않고 **브라우저도 열지 않습니다**. 포지션마다 `applications/<날짜-회사-직무>/`에 `APPLICATION.md`(평가, 커버레터, 답변), `cover_letter.txt`, `data.json`을 만듭니다. |
 | `review` | 브라우저를 띄워 폼을 채우고, 사용자가 브라우저에서 확인하거나 고친 뒤 터미널에서 `[s]ubmit / [k]skip / [m]anual`을 고릅니다. |
 | `auto` | 사람 확인 없이 제출합니다. 단, **Greenhouse/Lever/Ashby 호스트에서만**, **필수 항목이 전부 채워졌고**, **CAPTCHA가 없을 때만** 제출합니다. 조건이 하나라도 안 맞으면 `needs_manual`로 남깁니다. |
 

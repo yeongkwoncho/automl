@@ -39,3 +39,10 @@ def search_terms(prefs: Preferences) -> List[str]:
   """Queries to send to keyword-search APIs."""
   terms = list(dict.fromkeys(prefs.titles + prefs.keywords))
   return terms or ['']
+
+
+def describe_error(e: Exception) -> str:
+  """One-line description of a fetch failure for logs."""
+  if isinstance(e, httpx.HTTPStatusError):
+    return f'HTTP {e.response.status_code} from {e.request.url.host}'
+  return f'{type(e).__name__}: {e}'.splitlines()[0]

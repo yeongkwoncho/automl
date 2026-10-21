@@ -12,9 +12,10 @@ from jobpilot.agent import Matcher, Tailor
 from jobpilot.appliers import load_packet, write_packet
 from jobpilot.config import Config
 from jobpilot.filters import prefilter
-from jobpilot.llm import LLMError, StructuredLLM
+from jobpilot.llm import LLMAuthError, LLMError, StructuredLLM
 from jobpilot.models import ApplyOutcome, CandidateProfile, Job
 from jobpilot.sources import JobSource, build_sources
+from jobpilot.sources.base import describe_error
 from jobpilot.store import Store
 
 logger = logging.getLogger(__name__)
@@ -47,19 +48,28 @@ class Pipeline:
     if sources is None:
       http = httpx.Client(timeout=30, follow_redirects=True)
       sources = build_sources(self.cfg.sources, http)
-    counts = {'fetched': 0, 'new': 0, 'passed': 0}
+    counts = {'fetched': 0, 'new': 0, 'passed': 0, 'by_source': {}}
     try:
       for src in sources:
+        per = counts['by_source'].setdefault(src.name, {
+            'fetched': 0,
+            'new': 0,
+            'passed': 0
+        })
         try:
           for job in src.fetch(self.prefs):
             counts['fetched'] += 1
+            per['fetched'] += 1
             result = prefilter(job, self.prefs)
             if self.store.add_job(job,
                                   None if result.passed else result.reason):
               counts['new'] += 1
+              per['new'] += 1
               counts['passed'] += result.passed
+              per['passed'] += result.passed
         except httpx.HTTPError as e:
-          logger.warning('source %s failed: %s', src.name, e)
+          per['error'] = describe_error(e)
+          logger.warning('source %s failed: %s', src.name, per['error'])
     finally:
       if http:
         http.close()
@@ -76,6 +86,10 @@ class Pipeline:
         try:
           self.store.save_match(job.uid, fut.result())
           counts['scored'] += 1
+        except LLMAuthError:
+          for f in futures:
+            f.cancel()
+          raise
         except LLMError as e:
           logger.warning('scoring %s failed: %s', job.uid, e)
           counts['errors'] += 1
@@ -96,6 +110,17 @@ class Pipeline:
     candidates = list(
         self.store.candidates(ac.min_score,
                               include_packets=ac.mode != 'dry_run'))
+    if not candidates:
+      st = self.store.stats()
+      logger.info(
+          'nothing to apply to: %d jobs passed the prefilter, %d scored, '
+          'none at or above min_score %d without an application yet.%s',
+          st['passed_prefilter'], st['scored'], ac.min_score,
+          ' Run `jobpilot match` first.'
+          if st['passed_prefilter'] > st['scored'] else '')
+    elif ac.mode == 'dry_run':
+      logger.info('dry_run: writing application packets only; no browser '
+                  'opens. Use --mode review to fill forms in a browser.')
     for job, match, existing_dir in candidates:
       if limit is not None and processed >= limit:
         break
@@ -111,6 +136,8 @@ class Pipeline:
       if packet is None:
         try:
           packet = self.tailor.tailor(job, match)
+        except LLMAuthError:
+          raise
         except LLMError as e:
           logger.warning('tailoring %s failed: %s', job.uid, e)
           counts['failed'] = counts.get('failed', 0) + 1
@@ -154,5 +181,7 @@ class Pipeline:
                           detail='resume_path missing; cannot upload resume')
     try:
       return applier.apply(job, packet, self.profile, packet_dir, answer_fn)
+    except LLMAuthError:
+      raise
     except LLMError as e:
       return ApplyOutcome(status='failed', detail=str(e))

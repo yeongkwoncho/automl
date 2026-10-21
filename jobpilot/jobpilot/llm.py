@@ -20,6 +20,10 @@ class LLMError(RuntimeError):
   pass
 
 
+class LLMAuthError(LLMError):
+  """No usable Claude API credentials; retrying other jobs is pointless."""
+
+
 class StructuredLLM(Protocol):
 
   def structured(self,
@@ -71,12 +75,20 @@ class ClaudeLLM:
           betas=[FALLBACK_BETA],
           fallbacks='default',
       )
+    except anthropic.AuthenticationError as e:
+      raise LLMAuthError(f'Claude API key rejected: {e.message}') from e
     except anthropic.RateLimitError as e:
       raise LLMError(f'rate limited: {e.message}') from e
     except anthropic.APIStatusError as e:
       raise LLMError(f'API error {e.status_code}: {e.message}') from e
     except anthropic.APIConnectionError as e:
       raise LLMError(f'connection error: {e}') from e
+    except TypeError as e:
+      # The SDK raises TypeError when no credentials are configured at all.
+      if 'authentication' in str(e).lower():
+        raise LLMAuthError(
+            'Claude API credentials not found: set ANTHROPIC_API_KEY') from e
+      raise
 
     if resp.stop_reason == 'refusal':
       raise LLMError('model declined the request')

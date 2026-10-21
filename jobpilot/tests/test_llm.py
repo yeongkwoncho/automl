@@ -72,3 +72,16 @@ def test_bad_stop_reasons(reason):
     ClaudeLLM(client=client).structured(system='s',
                                         content='c',
                                         schema=MatchAssessment)
+
+
+def test_missing_credentials_is_auth_error(monkeypatch):
+  for k in ('ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'):
+    monkeypatch.delenv(k, raising=False)
+  client, _ = fake_client()
+  client.api_key = None
+  client.auth_token = None
+  from jobpilot.llm import LLMAuthError
+  with pytest.raises(LLMAuthError, match='ANTHROPIC_API_KEY'):
+    ClaudeLLM(client=client).structured(system='s',
+                                        content='c',
+                                        schema=MatchAssessment)

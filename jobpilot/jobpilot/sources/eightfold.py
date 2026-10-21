@@ -16,7 +16,7 @@ import httpx
 
 from jobpilot.models import Job, Preferences
 from jobpilot.sources.ats import _BoardSource
-from jobpilot.sources.base import USER_AGENT, search_terms
+from jobpilot.sources.base import USER_AGENT, describe_error, search_terms
 from jobpilot.textutil import html_to_text, parse_datetime
 
 logger = logging.getLogger(__name__)
@@ -80,7 +80,9 @@ class EightfoldSource(_BoardSource):
       try:
         yield from self._fetch_site(parse_site(entry), prefs, wanted)
       except (httpx.HTTPError, ValueError, KeyError) as e:
-        logger.warning('eightfold site %r failed: %s', entry, e)
+        logger.warning('eightfold site %s failed: %s',
+                       entry if isinstance(entry, str) else entry.get('url'),
+                       describe_error(e))
 
   def fetch_board(self, board):
     return self._fetch_site(parse_site(board), Preferences(), [])

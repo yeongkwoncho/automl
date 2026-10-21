@@ -48,10 +48,15 @@ class Store:
 
   # Jobs.
   def add_job(self, job: Job, filter_reason: Optional[str]) -> bool:
-    """Stores a job; returns False if it (or a cross-posted copy) exists."""
+    """Stores a job; returns False if it (or a cross-posted copy) exists.
+
+    A cross-posted copy is the same company/title/location from a different
+    source. Within one source, distinct ids are distinct openings (companies
+    often post several identical titles for different teams).
+    """
     exists = self.db.execute(
-        'SELECT 1 FROM jobs WHERE uid = ? OR dedup_key = ?',
-        (job.uid, job.dedup_key)).fetchone()
+        'SELECT 1 FROM jobs WHERE uid = ? OR (dedup_key = ? AND uid NOT LIKE ?)',
+        (job.uid, job.dedup_key, job.source + ':%')).fetchone()
     if exists:
       return False
     with self.db:
@@ -150,6 +155,48 @@ class Store:
                company=job['company'],
                url=job['url']))
     return out
+
+  def list_jobs(self,
+                status: str = 'all',
+                source: Optional[str] = None,
+                company: Optional[str] = None,
+                limit: int = 50) -> List[dict]:
+    """Collected jobs, newest first, with prefilter result and score."""
+    q = ('SELECT j.uid, j.data, j.filter_reason, m.score, a.status '
+         'FROM jobs j LEFT JOIN matches m ON m.uid = j.uid '
+         'LEFT JOIN applications a ON a.uid = j.uid WHERE 1=1')
+    args = []
+    if status == 'passed':
+      q += ' AND j.filter_reason IS NULL'
+    elif status == 'rejected':
+      q += ' AND j.filter_reason IS NOT NULL'
+    if source:
+      q += ' AND j.uid LIKE ?'
+      args.append(source + ':%')
+    if company:
+      q += ' AND j.company LIKE ?'
+      args.append(f'%{company.lower()}%')
+    q += ' ORDER BY j.first_seen DESC, j.rowid DESC LIMIT ?'
+    args.append(limit)
+    out = []
+    for uid, data, reason, score, app in self.db.execute(q, args):
+      job = json.loads(data)
+      out.append(
+          dict(uid=uid,
+               title=job['title'],
+               company=job['company'],
+               location=job.get('location', ''),
+               url=job['url'],
+               filter_reason=reason,
+               score=score,
+               application=app))
+    return out
+
+  def source_counts(self) -> List[tuple]:
+    return self.db.execute(
+        "SELECT substr(uid, 1, instr(uid, ':') - 1) AS src, COUNT(*), "
+        'SUM(filter_reason IS NULL) FROM jobs GROUP BY src ORDER BY src'
+    ).fetchall()
 
   def stats(self) -> dict:
     q = lambda sql: self.db.execute(sql).fetchone()[0]

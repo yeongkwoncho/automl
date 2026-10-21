@@ -28,6 +28,11 @@ CONFIRMATION_RE = re.compile(
 # Hosts where auto mode may submit; anything else is review-only.
 AUTO_SUBMIT_HOSTS = ('greenhouse.io', 'lever.co', 'ashbyhq.com')
 
+
+class BrowserSetupError(RuntimeError):
+  """The browser cannot start at all (not installed, no display, ...)."""
+
+
 AnswerFn = Callable[[List[str]], List[QuestionAnswer]]
 # Called in review mode; returns 'submit', 'skip' or 'manual'.
 ConfirmFn = Callable[[Job, FillPlan, str], str]
@@ -71,8 +76,13 @@ class BrowserApplier:
   def apply(self, job: Job, packet: TailoredApplication,
             profile: CandidateProfile, packet_dir: str,
             answer_fn: AnswerFn) -> ApplyOutcome:
-    from playwright.sync_api import Error as PlaywrightError  # pylint: disable=g-import-not-at-top
-    from playwright.sync_api import sync_playwright  # pylint: disable=g-import-not-at-top
+    try:
+      from playwright.sync_api import Error as PlaywrightError  # pylint: disable=g-import-not-at-top
+      from playwright.sync_api import sync_playwright  # pylint: disable=g-import-not-at-top
+    except ImportError as e:
+      raise BrowserSetupError(
+          'Playwright is not installed. Run: pip install -e ".[browser]" '
+          '&& playwright install chromium') from e
 
     url = job.apply_url or job.url
     if self.mode == 'auto' and not any(h in url for h in AUTO_SUBMIT_HOSTS):
@@ -83,7 +93,16 @@ class BrowserApplier:
       kwargs = {'headless': self.headless}
       if self.executable_path:
         kwargs['executable_path'] = self.executable_path
-      browser = p.chromium.launch(**kwargs)
+      try:
+        browser = p.chromium.launch(**kwargs)
+      except PlaywrightError as e:
+        msg = str(e).splitlines()[0]
+        if 'Executable doesn' in str(e) or 'playwright install' in str(e):
+          msg = 'Chromium is not installed. Run: playwright install chromium'
+        elif 'display' in str(e).lower() or 'headed' in str(e).lower():
+          msg = ('cannot open a browser window (no display). Run review mode '
+                 'on a desktop session.')
+        raise BrowserSetupError(msg) from e
       try:
         page = browser.new_page()
         page.set_default_timeout(self.timeout_ms)

@@ -11,7 +11,7 @@ import yaml
 
 from jobpilot.agent import ProfileImporter
 from jobpilot.config import load_config, missing_profile_fields
-from jobpilot.llm import ClaudeLLM
+from jobpilot.llm import ClaudeLLM, LLMAuthError
 from jobpilot.pipeline import Pipeline
 from jobpilot.sources import check_boards
 from jobpilot.store import Store
@@ -56,6 +56,7 @@ def _pipeline(args):
 
 
 def cmd_step(args):
+  from jobpilot.appliers.browser import BrowserSetupError  # pylint: disable=g-import-not-at-top
   pipe, store = _pipeline(args)
   try:
     if args.command == 'search':
@@ -66,9 +67,51 @@ def cmd_step(args):
       result = pipe.apply(limit=args.limit)
     else:
       result = pipe.run()
-    print(json.dumps(result, indent=1))
+  except LLMAuthError as e:
+    sys.exit(f'error: {e}\n(match/apply call Claude; search does not.)')
+  except BrowserSetupError as e:
+    sys.exit(f'error: browser could not start: {e}')
   finally:
     store.close()
+  search = result.get('search', result) if args.command in ('search',
+                                                            'run') else None
+  if search and 'by_source' in search:
+    print(f'{"source":12} {"fetched":>7} {"new":>5} {"passed":>6}')
+    for name, c in search['by_source'].items():
+      print(f'{name:12} {c["fetched"]:7} {c["new"]:5} {c["passed"]:6}'
+            f'{"  " + c["error"] if c.get("error") else ""}')
+    print(f'{"total":12} {search["fetched"]:7} {search["new"]:5} '
+          f'{search["passed"]:6}')
+    print('\nInspect what was collected: jobpilot jobs  '
+          '(--rejected shows why jobs were filtered out)')
+    if args.command == 'run':
+      print(
+          json.dumps({
+              k: v for k, v in result.items() if k != 'search'
+          },
+                     indent=1))
+  else:
+    print(json.dumps(result, indent=1))
+
+
+def cmd_jobs(args):
+  cfg = load_config(args.config)
+  store = Store(cfg.path(cfg.database))
+  status = 'passed' if args.passed else 'rejected' if args.rejected else 'all'
+  for src, n, passed in store.source_counts():
+    print(f'{src:12} {n:5} collected, {passed or 0:5} passed prefilter')
+  print()
+  rows = store.list_jobs(status, args.source, args.company, args.limit)
+  for r in rows:
+    tag = (f'filtered: {r["filter_reason"]}' if r['filter_reason'] else
+           f'score {r["score"]}' if r['score'] is not None else 'not scored')
+    if r['application']:
+      tag += f', {r["application"]}'
+    print(f'{r["title"]} @ {r["company"]} — {r["location"] or "?"}\n'
+          f'    [{tag}] {r["uid"]}\n    {r["url"]}')
+  if not rows:
+    print('no jobs match; run `jobpilot search` first')
+  store.close()
 
 
 def cmd_status(args):
@@ -133,6 +176,15 @@ def main(argv=None):
   p = sub.add_parser('run', help='search + match + apply')
   p.add_argument('--mode', choices=['dry_run', 'review', 'auto'])
   p.set_defaults(func=cmd_step)
+
+  p = sub.add_parser('jobs', help='list collected jobs and filter results')
+  g = p.add_mutually_exclusive_group()
+  g.add_argument('--passed', action='store_true')
+  g.add_argument('--rejected', action='store_true')
+  p.add_argument('--source')
+  p.add_argument('--company')
+  p.add_argument('--limit', type=int, default=50)
+  p.set_defaults(func=cmd_jobs)
 
   p = sub.add_parser('status', help='show application history')
   p.add_argument('--status')
