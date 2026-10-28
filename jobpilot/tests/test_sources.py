@@ -215,3 +215,13 @@ def test_check_boards():
   assert rows == [('lever', 'gausslabs', '0 jobs'),
                   ('lever', 'typo', 'HTTP 404 (wrong slug?)'),
                   ('recruitee', 'invisix', '0 jobs')]
+
+
+def test_board_failures_are_reported():
+  http = client(
+      {'https://boards-api.greenhouse.io/v1/boards/ok/jobs': {
+          'jobs': []
+      }})
+  src = GreenhouseSource(http, ['ok', 'missing'])
+  assert list(src.fetch(PREFS)) == []
+  assert src.errors == [('missing', 'HTTP 404 from boards-api.greenhouse.io')]

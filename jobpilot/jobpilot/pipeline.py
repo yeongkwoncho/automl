@@ -70,6 +70,11 @@ class Pipeline:
         except httpx.HTTPError as e:
           per['error'] = describe_error(e)
           logger.warning('source %s failed: %s', src.name, per['error'])
+        board_errors = getattr(src, 'errors', None)
+        if board_errors:
+          total = len(getattr(src, 'boards', [])) or len(board_errors)
+          per['error'] = (f'{len(board_errors)}/{total} boards failed '
+                          f'({board_errors[0][1]})')
     finally:
       if http:
         http.close()

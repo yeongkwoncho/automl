@@ -219,3 +219,20 @@ def test_jobs_listing(tmp_path, profile, prefs):
   assert rej['filter_reason'] == 'title does not match'
   assert [r['uid'] for r in store.list_jobs('passed')] == ['greenhouse:acme/1']
   assert store.source_counts() == [('greenhouse', 2, 1)]
+
+
+def test_search_table_shows_board_failures(tmp_path, profile, prefs):
+
+  class FailingBoards(ListSource):
+    name = 'greenhouse'
+    boards = ['a', 'b']
+
+    def fetch(self, prefs):
+      self.errors = [('a', 'HTTP 403 from x'), ('b', 'HTTP 403 from x')]
+      return iter([])
+
+  pipe, _ = make_pipeline(tmp_path, profile, prefs, [])
+  pipe._sources = [FailingBoards([])]
+  res = pipe.search()
+  assert res['by_source']['greenhouse']['error'] == (
+      '2/2 boards failed (HTTP 403 from x)')

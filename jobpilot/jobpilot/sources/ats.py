@@ -21,14 +21,23 @@ class _BoardSource(JobSource):
   def __init__(self, http: httpx.Client, boards: List[str]):
     super().__init__(http)
     self.boards = boards
+    # (board, error) for boards that failed in the last fetch(), so callers
+    # can tell "no openings" apart from "could not reach the board".
+    self.errors: List[tuple] = []
+
+  def _failed(self, board, e: Exception):
+    label = board if isinstance(board, str) else board.get('url', board)
+    msg = describe_error(e)
+    self.errors.append((label, msg))
+    logger.warning('%s board %s failed: %s', self.name, label, msg)
 
   def fetch(self, prefs: Preferences) -> Iterator[Job]:
+    self.errors = []
     for board in self.boards:
       try:
         yield from self.fetch_board(board)
       except (httpx.HTTPError, ValueError, KeyError) as e:
-        logger.warning('%s board %r failed: %s', self.name, board,
-                       describe_error(e))
+        self._failed(board, e)
 
   def fetch_board(self, board: str) -> Iterator[Job]:
     raise NotImplementedError
