@@ -3,3 +3,4 @@ applications/
 /config.yaml
 /profile.yaml
 *.egg-info/
+.venv/
