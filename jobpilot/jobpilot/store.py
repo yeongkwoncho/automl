@@ -65,6 +65,24 @@ class Store:
                        job.model_dump_json(), _now(), filter_reason))
     return True
 
+  def all_jobs(self) -> List[Tuple[Job, Optional[str]]]:
+    rows = self.db.execute('SELECT data, filter_reason FROM jobs').fetchall()
+    return [(Job.model_validate_json(d), r) for d, r in rows]
+
+  def set_filter(self, uid: str, reason: Optional[str]):
+    with self.db:
+      self.db.execute('UPDATE jobs SET filter_reason = ? WHERE uid = ?',
+                      (reason, uid))
+
+  def filter_reasons(self) -> List[tuple]:
+    """Rejected-job counts per reason kind ('location', 'too old', ...)."""
+    return self.db.execute(
+        "SELECT CASE WHEN instr(filter_reason, ':') > 0 "
+        "THEN substr(filter_reason, 1, instr(filter_reason, ':') - 1) "
+        'ELSE filter_reason END AS kind, COUNT(*) FROM jobs '
+        'WHERE filter_reason IS NOT NULL GROUP BY kind ORDER BY 2 DESC'
+    ).fetchall()
+
   def get_job(self, uid: str) -> Optional[Job]:
     row = self.db.execute('SELECT data FROM jobs WHERE uid = ?',
                           (uid,)).fetchone()
@@ -96,7 +114,7 @@ class Store:
         'SELECT j.data, m.data, a.packet_dir FROM matches m '
         'JOIN jobs j ON j.uid = m.uid '
         'LEFT JOIN applications a ON a.uid = m.uid '
-        'WHERE m.score >= ? AND (a.uid IS NULL OR '
+        'WHERE m.score >= ? AND j.filter_reason IS NULL AND (a.uid IS NULL OR '
         "(? AND a.status = 'packet_ready')) ORDER BY m.score DESC",
         (min_score, include_packets)).fetchall()
     for job, match, packet_dir in rows:

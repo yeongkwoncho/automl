@@ -53,6 +53,7 @@ jobpilot import-resume resume.pdf --force   # 이력서에서 profile.yaml 추�
 jobpilot check-boards              # 설정한 회사 보드 slug가 맞는지 확인
 jobpilot search                    # 공고 수집 + 1차 필터 (소스별 집계 출력)
 jobpilot jobs                      # 수집된 공고 목록 (--rejected: 걸러진 이유)
+jobpilot refilter                  # config.yaml 조건을 바꾼 뒤 저장된 공고에 다시 적용 (네트워크 불필요)
 jobpilot match                     # Claude로 적합도 점수
 jobpilot apply                     # 기본값 dry_run: applications/ 폴더에 지원 패킷만 생성
 jobpilot status                    # 이력 보기

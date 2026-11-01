@@ -236,3 +236,53 @@ def test_search_table_shows_board_failures(tmp_path, profile, prefs):
   res = pipe.search()
   assert res['by_source']['greenhouse']['error'] == (
       '2/2 boards failed (HTTP 403 from x)')
+
+
+def test_refilter_after_preferences_change(tmp_path, profile, prefs):
+  jobs = [
+      make_job(),
+      make_job(external_id='acme/2', title='Metrology Engineer')
+  ]
+  pipe, store = make_pipeline(tmp_path, profile, prefs, jobs)
+  pipe.search()
+  pipe.match()
+  assert [r['title'] for r in store.list_jobs('passed')
+         ] == ['Senior Machine Learning Engineer']
+  assert store.filter_reasons() == [('title does not match', 1)]
+
+  # User switches to metrology roles and re-runs (no network needed).
+  prefs.titles, prefs.keywords = ['Metrology Engineer'], []
+  assert pipe.refilter() == {'now_passed': 1, 'now_rejected': 1}
+  assert [r['title'] for r in store.list_jobs('passed')
+         ] == ['Metrology Engineer']
+  # The ML job was scored 90 earlier but no longer fits: not applied to.
+  assert list(store.candidates(75)) == []
+  assert pipe.refilter() == {'now_passed': 0, 'now_rejected': 0}
+
+  # search also re-checks stored jobs.
+  prefs.titles = ['Machine Learning Engineer']
+  res = pipe.search()
+  assert res['new'] == 0 and res['refiltered']['now_passed'] == 1
+
+
+def test_cli_registers_every_step_command():
+  import argparse
+  from jobpilot import cli
+  seen = []
+  orig = argparse._SubParsersAction.add_parser
+
+  def spy(self, name, **kw):
+    seen.append(name)
+    return orig(self, name, **kw)
+
+  argparse._SubParsersAction.add_parser = spy
+  try:
+    try:
+      cli.main(['--help'])
+    except SystemExit:
+      pass
+  finally:
+    argparse._SubParsersAction.add_parser = orig
+  for cmd in ('search', 'refilter', 'match', 'apply', 'run', 'jobs', 'status',
+              'check-boards', 'mark', 'init', 'import-resume'):
+    assert cmd in seen, cmd

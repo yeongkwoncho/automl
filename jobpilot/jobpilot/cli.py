@@ -65,6 +65,8 @@ def cmd_step(args):
       result = pipe.match(limit=args.limit)
     elif args.command == 'apply':
       result = pipe.apply(limit=args.limit)
+    elif args.command == 'refilter':
+      result = pipe.refilter()
     else:
       result = pipe.run()
   except LLMAuthError as e:
@@ -82,6 +84,10 @@ def cmd_step(args):
             f'{"  " + c["error"] if c.get("error") else ""}')
     print(f'{"total":12} {search["fetched"]:7} {search["new"]:5} '
           f'{search["passed"]:6}')
+    rf = search.get('refiltered') or {}
+    if rf.get('now_passed') or rf.get('now_rejected'):
+      print(f'\nre-checked stored jobs against current preferences: '
+            f'{rf["now_passed"]} now pass, {rf["now_rejected"]} now filtered')
     print('\nInspect what was collected: jobpilot jobs  '
           '(--rejected shows why jobs were filtered out)')
     if args.command == 'run':
@@ -100,6 +106,10 @@ def cmd_jobs(args):
   status = 'passed' if args.passed else 'rejected' if args.rejected else 'all'
   for src, n, passed in store.source_counts():
     print(f'{src:12} {n:5} collected, {passed or 0:5} passed prefilter')
+  if status != 'passed':
+    reasons = store.filter_reasons()
+    if reasons:
+      print('\nfiltered out by: ' + ', '.join(f'{k} {n}' for k, n in reasons))
   print()
   rows = store.list_jobs(status, args.source, args.company, args.limit)
   for r in rows:
@@ -166,6 +176,10 @@ def main(argv=None):
 
   sub.add_parser('search',
                  help='fetch jobs and prefilter').set_defaults(func=cmd_step)
+  sub.add_parser(
+      'refilter',
+      help='re-apply preferences to stored jobs (no network)').set_defaults(
+          func=cmd_step)
   for name, help_ in (('match', 'score new jobs with Claude'),
                       ('apply', 'tailor and apply to top matches')):
     p = sub.add_parser(name, help=help_)

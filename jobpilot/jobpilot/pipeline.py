@@ -78,7 +78,25 @@ class Pipeline:
     finally:
       if http:
         http.close()
+    counts['refiltered'] = self.refilter()
     return counts
+
+  def refilter(self) -> Dict[str, int]:
+    """Re-applies the prefilter to every stored job.
+
+    Jobs are filtered when first seen; without this, editing preferences
+    in config.yaml would not change the result for jobs already stored.
+    """
+    out = {'now_passed': 0, 'now_rejected': 0}
+    for job, old in self.store.all_jobs():
+      result = prefilter(job, self.prefs)
+      new = None if result.passed else result.reason
+      if new != old:
+        self.store.set_filter(job.uid, new)
+        out['now_passed' if new is None else 'now_rejected'] += ((old is None)
+                                                                 != (new
+                                                                     is None))
+    return out
 
   # 2. Match.
   def match(self, limit: Optional[int] = None) -> Dict[str, int]:
