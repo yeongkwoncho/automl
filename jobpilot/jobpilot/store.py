@@ -30,6 +30,10 @@ CREATE TABLE IF NOT EXISTS applications (
   packet_dir TEXT,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS selections (
+  uid TEXT PRIMARY KEY REFERENCES jobs(uid),
+  selected_at TEXT NOT NULL
+);
 """
 
 
@@ -88,11 +92,38 @@ class Store:
                           (uid,)).fetchone()
     return Job.model_validate_json(row[0]) if row else None
 
-  def unscored_jobs(self) -> List[Job]:
-    rows = self.db.execute(
-        'SELECT j.data FROM jobs j LEFT JOIN matches m ON j.uid = m.uid '
-        'WHERE j.filter_reason IS NULL AND m.uid IS NULL').fetchall()
+  def unscored_jobs(self, only: Optional[List[str]] = None) -> List[Job]:
+    """Jobs to score. With `only` (a hand-picked list), the prefilter is
+    skipped: the user chose them explicitly."""
+    q = ('SELECT j.data FROM jobs j LEFT JOIN matches m ON j.uid = m.uid '
+         'WHERE m.uid IS NULL')
+    if only is None:
+      rows = self.db.execute(q + ' AND j.filter_reason IS NULL').fetchall()
+    else:
+      rows = [
+          r for uid in only
+          for r in self.db.execute(q + ' AND j.uid = ?', (uid,)).fetchall()
+      ]
     return [Job.model_validate_json(r[0]) for r in rows]
+
+  # Selections (jobs the user picked in the web page).
+  def set_selected(self, uids: List[str], selected: bool) -> int:
+    with self.db:
+      if selected:
+        cur = self.db.executemany(
+            'INSERT OR IGNORE INTO selections '
+            'SELECT uid, ? FROM jobs WHERE uid = ?',
+            [(_now(), u) for u in uids])
+      else:
+        cur = self.db.executemany('DELETE FROM selections WHERE uid = ?',
+                                  [(u,) for u in uids])
+    return cur.rowcount
+
+  def selected_uids(self) -> List[str]:
+    return [
+        r[0] for r in self.db.execute(
+            'SELECT uid FROM selections ORDER BY selected_at')
+    ]
 
   # Matches.
   def save_match(self, uid: str, m: MatchAssessment):
@@ -103,23 +134,83 @@ class Store:
   def candidates(
       self,
       min_score: int,
-      include_packets: bool = False
+      include_packets: bool = False,
+      only: Optional[List[str]] = None,
   ) -> Iterator[Tuple[Job, MatchAssessment, Optional[str]]]:
     """Scored jobs above threshold not yet applied to, best first.
 
     With include_packets, dry-run jobs ('packet_ready') are returned too,
     along with their packet directory, so they can be submitted later.
+    With `only` (hand-picked uids), the prefilter and min_score are not
+    applied: the user chose these jobs explicitly.
     """
+    where = ('(a.uid IS NULL OR (? AND a.status = \'packet_ready\'))')
+    args: list = [include_packets]
+    if only is None:
+      where += ' AND m.score >= ? AND j.filter_reason IS NULL'
+      args.append(min_score)
+    else:
+      if not only:
+        return
+      where += f' AND j.uid IN ({",".join("?" * len(only))})'
+      args += list(only)
     rows = self.db.execute(
         'SELECT j.data, m.data, a.packet_dir FROM matches m '
         'JOIN jobs j ON j.uid = m.uid '
         'LEFT JOIN applications a ON a.uid = m.uid '
-        'WHERE m.score >= ? AND j.filter_reason IS NULL AND (a.uid IS NULL OR '
-        "(? AND a.status = 'packet_ready')) ORDER BY m.score DESC",
-        (min_score, include_packets)).fetchall()
+        f'WHERE {where} ORDER BY m.score DESC', args).fetchall()
     for job, match, packet_dir in rows:
       yield (Job.model_validate_json(job),
              MatchAssessment.model_validate_json(match), packet_dir)
+
+  # Web page.
+  def web_jobs(self) -> List[dict]:
+    """Every collected job as a light row (no description) for the UI."""
+    rows = self.db.execute(
+        'SELECT j.uid, j.data, j.filter_reason, j.first_seen, m.score, '
+        'm.data, a.status, s.uid FROM jobs j '
+        'LEFT JOIN matches m ON m.uid = j.uid '
+        'LEFT JOIN applications a ON a.uid = j.uid '
+        'LEFT JOIN selections s ON s.uid = j.uid')
+    out = []
+    for uid, data, reason, first_seen, score, mdata, app, sel in rows:
+      j = json.loads(data)
+      out.append({
+          'uid': uid,
+          'source': j['source'],
+          'title': j['title'],
+          'company': j['company'],
+          'location': j.get('location') or '',
+          'remote': bool(j.get('remote')),
+          'url': j['url'],
+          'apply_url': j.get('apply_url') or j['url'],
+          'posted_at': (j.get('posted_at') or '')[:10],
+          'first_seen': first_seen[:10],
+          'employment_type': j.get('employment_type') or '',
+          'tags': j.get('tags') or [],
+          'filter_reason': reason,
+          'score': score,
+          'verdict': json.loads(mdata)['verdict'] if mdata else None,
+          'application': app,
+          'selected': sel is not None,
+      })
+    return out
+
+  def web_job_detail(self, uid: str) -> Optional[dict]:
+    row = self.db.execute(
+        'SELECT j.data, m.data FROM jobs j LEFT JOIN matches m '
+        'ON m.uid = j.uid WHERE j.uid = ?', (uid,)).fetchone()
+    if not row:
+      return None
+    j = json.loads(row[0])
+    return {
+        'uid': uid,
+        'description': j.get('description', ''),
+        'salary_min': j.get('salary_min'),
+        'salary_max': j.get('salary_max'),
+        'salary_currency': j.get('salary_currency'),
+        'match': json.loads(row[1]) if row[1] else None
+    }
 
   # Applications.
   def record_application(self,

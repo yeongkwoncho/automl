@@ -61,10 +61,14 @@ def cmd_step(args):
   try:
     if args.command == 'search':
       result = pipe.search()
-    elif args.command == 'match':
-      result = pipe.match(limit=args.limit)
-    elif args.command == 'apply':
-      result = pipe.apply(limit=args.limit)
+    elif args.command in ('match', 'apply'):
+      only = None
+      if args.selected:
+        only = store.selected_uids()
+        if not only:
+          sys.exit('no jobs selected; pick some in `jobpilot serve` first')
+      step = pipe.match if args.command == 'match' else pipe.apply
+      result = step(limit=args.limit, only=only)
     elif args.command == 'refilter':
       result = pipe.refilter()
     else:
@@ -122,6 +126,20 @@ def cmd_jobs(args):
   if not rows:
     print('no jobs match; run `jobpilot search` first')
   store.close()
+
+
+def cmd_serve(args):
+  from jobpilot import web  # pylint: disable=g-import-not-at-top
+  cfg = load_config(args.config)
+  store = Store(cfg.path(cfg.database))
+  info = {
+      'preferences': cfg.preferences.model_dump(),
+      'min_score': cfg.apply.min_score
+  }
+  try:
+    web.serve(store, args.port, not args.no_open, info)
+  finally:
+    store.close()
 
 
 def cmd_status(args):
@@ -184,12 +202,24 @@ def main(argv=None):
                       ('apply', 'tailor and apply to top matches')):
     p = sub.add_parser(name, help=help_)
     p.add_argument('--limit', type=int)
+    p.add_argument('--selected',
+                   action='store_true',
+                   help='only jobs picked in `jobpilot serve` (skips the '
+                   'prefilter' + (' and min_score' if name == 'apply' else '') +
+                   ')')
     if name == 'apply':
       p.add_argument('--mode', choices=['dry_run', 'review', 'auto'])
     p.set_defaults(func=cmd_step)
   p = sub.add_parser('run', help='search + match + apply')
   p.add_argument('--mode', choices=['dry_run', 'review', 'auto'])
   p.set_defaults(func=cmd_step)
+
+  p = sub.add_parser('serve', help='open the job browser web page')
+  p.add_argument('--port', type=int, default=8765)
+  p.add_argument('--no-open',
+                 action='store_true',
+                 help='do not open a browser window')
+  p.set_defaults(func=cmd_serve)
 
   p = sub.add_parser('jobs', help='list collected jobs and filter results')
   g = p.add_mutually_exclusive_group()

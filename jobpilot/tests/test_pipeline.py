@@ -284,5 +284,33 @@ def test_cli_registers_every_step_command():
   finally:
     argparse._SubParsersAction.add_parser = orig
   for cmd in ('search', 'refilter', 'match', 'apply', 'run', 'jobs', 'status',
-              'check-boards', 'mark', 'init', 'import-resume'):
+              'check-boards', 'mark', 'init', 'import-resume', 'serve'):
     assert cmd in seen, cmd
+
+
+def test_selected_jobs_bypass_prefilter_and_min_score(tmp_path, profile, prefs):
+  jobs = [
+      make_job(),
+      make_job(external_id='acme/2', title='Sales Manager'),
+      make_job(external_id='acme/3',
+               title='Staff Machine Learning '
+               'Engineer',
+               company='Other')
+  ]
+  pipe, store = make_pipeline(tmp_path,
+                              profile,
+                              prefs,
+                              jobs,
+                              llm=FakeLLM(score=40))
+  pipe.search()
+  # The user hand-picks the rejected Sales job in the web page.
+  store.set_selected(['greenhouse:acme/2'], True)
+  only = store.selected_uids()
+  assert pipe.match(only=only) == {'scored': 1, 'errors': 0}
+  # Normal apply skips it (filtered out, score 40 < 75)...
+  assert pipe.apply() == {}
+  # ...but --selected respects the user's choice.
+  assert pipe.apply(only=only) == {'packet_ready': 1}
+  assert [r['title'] for r in store.report()] == ['Sales Manager']
+  store.set_selected(only, False)
+  assert store.selected_uids() == []

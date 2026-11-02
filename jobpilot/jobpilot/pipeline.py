@@ -99,8 +99,11 @@ class Pipeline:
     return out
 
   # 2. Match.
-  def match(self, limit: Optional[int] = None) -> Dict[str, int]:
-    jobs = self.store.unscored_jobs()[:limit]
+  def match(self,
+            limit: Optional[int] = None,
+            only: Optional[List[str]] = None) -> Dict[str, int]:
+    """Scores unscored jobs; `only` restricts to hand-picked uids."""
+    jobs = self.store.unscored_jobs(only)[:limit]
     counts = {'scored': 0, 'errors': 0}
     with concurrent.futures.ThreadPoolExecutor(self.cfg.llm.max_workers) as ex:
       futures = {ex.submit(self.matcher.assess, j): j for j in jobs}
@@ -119,7 +122,10 @@ class Pipeline:
     return counts
 
   # 3+4. Tailor and apply.
-  def apply(self, limit: Optional[int] = None) -> Dict[str, int]:
+  def apply(self,
+            limit: Optional[int] = None,
+            only: Optional[List[str]] = None) -> Dict[str, int]:
+    """Tailors and applies; `only` restricts to hand-picked uids."""
     ac = self.cfg.apply
     now = dt.datetime.now(dt.timezone.utc)
     day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -132,8 +138,14 @@ class Pipeline:
 
     candidates = list(
         self.store.candidates(ac.min_score,
-                              include_packets=ac.mode != 'dry_run'))
-    if not candidates:
+                              include_packets=ac.mode != 'dry_run',
+                              only=only))
+    if not candidates and only is not None:
+      logger.info(
+          'nothing to apply to among %d selected jobs: they need a score '
+          '(run `jobpilot match --selected`) and no application yet.',
+          len(only))
+    elif not candidates:
       st = self.store.stats()
       logger.info(
           'nothing to apply to: %d jobs passed the prefilter, %d scored, '

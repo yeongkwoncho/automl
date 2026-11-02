@@ -54,6 +54,9 @@ jobpilot check-boards              # 설정한 회사 보드 slug가 맞는지 �
 jobpilot search                    # 공고 수집 + 1차 필터 (소스별 집계 출력)
 jobpilot jobs                      # 수집된 공고 목록 (--rejected: 걸러진 이유)
 jobpilot refilter                  # config.yaml 조건을 바꾼 뒤 저장된 공고에 다시 적용 (네트워크 불필요)
+jobpilot serve                     # 수집 결과 웹페이지 (필터·선택) → http://127.0.0.1:8765
+jobpilot match --selected          # 웹페이지에서 선택한 공고만 평가
+jobpilot apply --selected          # 선택한 공고만 지원 자료 생성/지원
 jobpilot match                     # Claude로 적합도 점수
 jobpilot apply                     # 기본값 dry_run: applications/ 폴더에 지원 패킷만 생성
 jobpilot status                    # 이력 보기
@@ -64,6 +67,16 @@ jobpilot status                    # 이력 보기
 ```cron
 0 9 * * *  cd ~/jobs && jobpilot run >> jobpilot.log 2>&1
 ```
+
+## 웹페이지 (`jobpilot serve`)
+
+`jobpilot serve`를 실행하면 내 컴퓨터에서만 접속되는(127.0.0.1) 웹페이지가 브라우저에 열립니다.
+
+- **필터**: 1차 필터 결과(통과·걸러짐), 걸러진 이유, 출처, 회사, 근무지, 원격, 게시일, 적합도 점수, 지원 상태,
+  검색어. 각 항목 옆 숫자는 다른 필터를 적용한 상태에서의 건수이고, 필터는 브라우저에 저장됩니다.
+- **목록**: 열 제목을 눌러 정렬하고, 행을 누르면 공고 내용과 Claude 평가가 보입니다.
+- **선택**: 체크한 공고는 DB에 저장됩니다. 선택한 공고는 1차 필터와 최소 점수를 건너뛰고
+  `match --selected` → `apply --selected`로 처리됩니다. 선택 목록은 CSV로 내보낼 수 있습니다.
 
 ## 지원 모드 (`apply.mode`)
 
