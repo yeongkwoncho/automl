@@ -22,6 +22,7 @@
   }
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--text);
   font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
   "Segoe UI", "Noto Sans KR", sans-serif; }
@@ -134,7 +135,7 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
     <div id="sources"></div>
 
     <h2>회사</h2>
-    <input type="text" id="companyQ" placeholder="회사 검색">
+    <input type="search" id="companyQ" placeholder="회사 검색 (Enter: 첫 결과 선택)" autocomplete="off">
     <div class="scroll" id="companies" style="margin-top:6px"></div>
 
     <h2>근무지</h2>
@@ -223,6 +224,9 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
   };
 
   const reasonKind = (r) => (r || '').split(':')[0];
+  // Case-, space- and punctuation-insensitive form for name search
+  // ("Gauss Labs" finds "gausslabs", "KLA" finds "kla").
+  const norm = (s) => String(s).toLowerCase().normalize('NFKC').replace(/[\s\-_.,&'()]/g, '');
   const safeUrl = (u) => /^https?:\/\//i.test(u || '') ? u : null;
   const daysAgo = (d) => d ? (Date.now() - Date.parse(d)) / 864e5 : Infinity;
   const toast = (msg) => { const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -285,7 +289,7 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
   // ---- facets (counts reflect the other active filters) ----
   // Every value ever collected is listed, so a company never vanishes from
   // the list; the count is what the other active filters leave (0 = dimmed).
-  function facet(container, key, valuesOf, label, skip) {
+  function facet(container, key, valuesOf, label, skip, query) {
     const totals = new Map(), counts = new Map();
     for (const j of state.jobs) {
       const v = valuesOf(j); if (v == null) continue;
@@ -297,7 +301,12 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
     const entries = [...totals.keys()].map(v => [v, counts.get(v) || 0, totals.get(v)])
       .sort((a, b) => b[1] - a[1] || b[2] - a[2] || String(a[0]).localeCompare(String(b[0])));
     if (!entries.length) box.append(el('div', { class: 'sub', text: '없음' }));
+    const q = norm(query || '');
+    let shown = 0;
     for (const [v, n, total] of entries) {
+      // While searching, keep checked values visible so they can be unchecked.
+      if (q && !norm(label(v)).includes(q) && !state.f[key].includes(v)) continue;
+      shown++;
       const cb = el('input', { type: 'checkbox' });
       cb.checked = state.f[key].includes(v);
       cb.addEventListener('change', () => {
@@ -308,12 +317,10 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
         title: n === total ? `${total}건` : `현재 필터에서 ${n}건 / 전체 ${total}건` },
         cb, el('span', { text: label(v) }), el('span', { class: 'n', text: n === total ? n : `${n} / ${total}` })));
     }
+    if (q && !shown) box.append(el('div', { class: 'sub', text: `'${query}'와 일치하는 회사가 없습니다.` }));
   }
   function renderCompanies() {
-    const q = $('companyQ').value.toLowerCase();
-    facet('companies', 'companies', j => j.company, v => v, 'companies');
-    if (q) for (const lab of $('companies').children)
-      lab.hidden = !lab.textContent.toLowerCase().includes(q) && !lab.querySelector('input').checked;
+    facet('companies', 'companies', j => j.company, v => v, 'companies', $('companyQ').value);
   }
   const APP_LABEL = { none: '미지원', packet_ready: '지원 자료 준비됨', submitted: '제출됨',
     needs_manual: '수동 처리 필요', skipped: '건너뜀', failed: '실패' };
@@ -466,6 +473,12 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
   $('score').addEventListener('change', () => { state.f.score = $('score').value; refresh(); });
   $('onlySel').addEventListener('change', () => { state.f.onlySel = $('onlySel').checked; refresh(); });
   $('companyQ').addEventListener('input', renderCompanies);
+  $('companyQ').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const first = [...$('companies').querySelectorAll('input')].find(i => !i.checked);
+    if (first) { first.checked = true; first.dispatchEvent(new Event('change')); }
+  });
   $('reset').addEventListener('click', () => {
     state.f = { q: '', status: 'passed', reasons: [], sources: [], companies: [], loc: '', remote: false,
       age: 0, score: 'any', apps: [], onlySel: false };

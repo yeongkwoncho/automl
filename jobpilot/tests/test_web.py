@@ -142,6 +142,27 @@ def test_page_filters_and_selection(server, tmp_path):
     evil.locator('input').check()
     assert rows() == 0 and "'전체'" in page.inner_text('#empty')
     evil.locator('input').uncheck()
+    # Company search: case-, space-insensitive, matches names not counts.
+    visible = lambda: [
+        l.inner_text().split('\n')[0].strip()
+        for l in page.locator('#companies label').all()
+        if l.is_visible()
+    ]
+    for q in ('kla', 'KLA', 'kLa'):
+      page.fill('#companyQ', q)
+      assert visible() == ['KLA'], (q, visible())
+    page.fill('#companyQ', 'ac me')
+    assert visible() == ['Acme']
+    page.fill('#companyQ', '1')  # digits only appear in counts
+    assert visible() == [] and '일치하는 회사가 없습니다' in page.inner_text('#companies')
+    page.fill('#companyQ', 'kla')
+    page.press('#companyQ', 'Enter')
+    assert rows() == 1 and page.locator(
+        '#companies label', has_text='KLA').locator('input').is_checked()
+    page.fill('#companyQ', '')
+    page.locator('#companies label', has_text='KLA').locator('input').uncheck()
+    assert len(visible()) == 3
+    assert not page.is_visible('#more')  # fewer rows than one page
     page.click('#status label:has(input[value=all])')
     assert rows() == 4
     # Untrusted titles render as text, javascript: URLs are not linked.
@@ -179,6 +200,7 @@ def test_page_filters_and_selection(server, tmp_path):
     page.locator('#rows tr',
                  has_text='Metrology Engineer').locator('td').nth(2).click()
     page.wait_for_selector('#drawer.open')
+    page.wait_for_selector('#dBody .desc')  # detail is fetched async
     assert 'Great fit' in page.inner_text('#dBody')
     page.screenshot(path=str(tmp_path / 'web.png'), full_page=True)
     # Filters survive a reload (localStorage).
