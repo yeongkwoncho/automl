@@ -134,6 +134,14 @@ def test_page_filters_and_selection(server, tmp_path):
     rows = lambda: page.locator('#rows tr').count()
     # Default view: jobs that passed the prefilter.
     assert rows() == 2
+    # Companies whose jobs were all filtered out are still listed (dimmed),
+    # and picking one explains why the list is empty.
+    evil = page.locator('#companies label', has_text='Evil')
+    assert evil.count() == 1 and 'zero' in evil.get_attribute('class')
+    assert evil.locator('.n').inner_text() == '0 / 1'
+    evil.locator('input').check()
+    assert rows() == 0 and "'전체'" in page.inner_text('#empty')
+    evil.locator('input').uncheck()
     page.click('#status label:has(input[value=all])')
     assert rows() == 4
     # Untrusted titles render as text, javascript: URLs are not linked.
