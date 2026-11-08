@@ -1,4 +1,5 @@
 """Config loading."""
+import copy
 import os
 from typing import Any, Dict, List, Literal, Optional
 
@@ -37,6 +38,9 @@ class Config(BaseModel):
   llm: LLMConfig = Field(default_factory=LLMConfig)
   apply: ApplyConfig = Field(default_factory=ApplyConfig)
   sources: Dict[str, Any] = Field(default_factory=dict)
+  # Merge the built-in company list (jobpilot/catalog.yaml) into sources.
+  catalog: bool = True
+  catalog_exclude: List[str] = Field(default_factory=list)
   base_dir: str = '.'
 
   def path(self, p: str) -> str:
@@ -54,11 +58,67 @@ class Config(BaseModel):
     return profile
 
 
+CATALOG = os.path.join(os.path.dirname(__file__), 'catalog.yaml')
+_BOARD_KEYS = ('greenhouse', 'lever', 'ashby', 'recruitee')
+_SITE_KEYS = ('workday', 'eightfold')
+
+
+def _site_key(entry) -> str:
+  url = entry if isinstance(entry, str) else entry.get('url', '')
+  return url.lower().split('://')[-1].rstrip('/')
+
+
+def _site_names(entry) -> List[str]:
+  if isinstance(entry, str):
+    return [_site_key(entry)]
+  return [entry.get('company', ''), _site_key(entry)]
+
+
+def merge_catalog(
+    user: Dict[str, Any], catalog: Dict[str, Any],
+    exclude: List[str] = ()) -> Dict[str, Any]:
+  """User sources plus every catalog company they do not already list.
+
+  The user's entries and settings win; catalog entries named in
+  `exclude` (board slug, company name or URL, any case) are skipped.
+  """
+  skip = {e.strip().lower() for e in exclude}
+  out = copy.deepcopy(user)
+  for key in _BOARD_KEYS:
+    boards = (catalog.get(key) or {}).get('boards') or []
+    sec = out.setdefault(key, {}) or {}
+    out[key] = sec
+    have = {b.lower() for b in sec.get('boards') or []}
+    sec['boards'] = list(sec.get('boards') or []) + [
+        b for b in boards if b.lower() not in have and b.lower() not in skip
+    ]
+  for key in _SITE_KEYS:
+    cat = catalog.get(key) or {}
+    sec = out.setdefault(key, {}) or {}
+    out[key] = sec
+    for k, v in cat.items():
+      if k != 'sites':
+        sec.setdefault(k, v)
+    have = {_site_key(e) for e in sec.get('sites') or []}
+    sec['sites'] = list(sec.get('sites') or []) + [
+        e for e in cat.get('sites') or []
+        if _site_key(e) not in have and not any(n.lower() in skip
+                                                for n in _site_names(e))
+    ]
+  if 'apple' in catalog and 'apple' not in out and 'apple' not in skip:
+    out['apple'] = copy.deepcopy(catalog['apple'])
+  return out
+
+
 def load_config(path: str) -> Config:
   with open(path) as f:
     data = yaml.safe_load(f) or {}
   cfg = Config(**data)
   cfg.base_dir = os.path.dirname(os.path.abspath(path))
+  if cfg.catalog:
+    with open(CATALOG) as f:
+      cfg.sources = merge_catalog(cfg.sources,
+                                  yaml.safe_load(f) or {}, cfg.catalog_exclude)
   return cfg
 
 

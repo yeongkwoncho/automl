@@ -1,0 +1,31 @@
+# Built-in company list. Merged into every config's `sources:` so new
+# companies added here are collected after `git pull`, with no config edit.
+# Turn off with `catalog: false` in config.yaml, or drop single companies
+# with `catalog_exclude: [Apple, intel, ...]` (board slug or company name).
+greenhouse:
+  boards: [anthropic, stripe, airbnb]
+lever:
+  boards:
+    - palantir
+    - gausslabs      # AI for semiconductor process control (Seoul, Palo Alto)
+    - lumafield      # industrial CT inspection & metrology (Boston, SF)
+ashby:
+  boards: [openai, notion]
+recruitee:
+  boards:
+    - invisix        # short-wavelength semiconductor metrology (Eindhoven)
+workday:
+  max_pages: 5
+  sites:
+    - {url: "https://kla.wd1.myworkdayjobs.com/Search", company: KLA}
+    - {url: "https://micron.wd1.myworkdayjobs.com/External", company: Micron}
+    - {url: "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite", company: NVIDIA}
+    - {url: "https://intel.wd1.myworkdayjobs.com/External", company: Intel}
+    - {url: "https://amat.wd1.myworkdayjobs.com/External", company: Applied Materials}
+eightfold:
+  max_pages: 10
+  sites:
+    - {url: "https://careers.qualcomm.com", domain: qualcomm.com, company: Qualcomm}
+apple:
+  enabled: true
+  max_pages: 5

@@ -323,6 +323,7 @@ def test_companies_command_flags_configured_but_empty(tmp_path, monkeypatch,
   monkeypatch.chdir(tmp_path)
   main(['init'])
   cfg = yaml.safe_load(open('config.yaml'))
+  cfg['catalog'] = False  # only the companies below
   cfg['sources'] = {
       'greenhouse': {
           'boards': ['stripe', 'my_co']

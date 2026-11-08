@@ -25,7 +25,7 @@ jobpilot = "jobpilot.cli:main"
 include = ["jobpilot*"]
 
 [tool.setuptools.package-data]
-jobpilot = ["examples/*.yaml", "web/*.html"]
+jobpilot = ["catalog.yaml", "examples/*.yaml", "web/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

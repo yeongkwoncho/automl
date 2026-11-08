@@ -37,62 +37,27 @@ apply:
   delay_seconds: 45
   headless: false
 
+# Companies: JobPilot's built-in list (jobpilot/catalog.yaml: Anthropic,
+# Stripe, OpenAI, KLA, Micron, NVIDIA, Intel, Applied Materials, Qualcomm,
+# Apple, ...) is merged in automatically and grows with `git pull`.
+# Add companies of your own under `sources:`; skip built-in ones here:
+catalog_exclude: []        # e.g. [Apple, airbnb]
+# catalog: false           # use only the companies listed below
+
 sources:
-  # Company career boards (public APIs). Use the slug from the board URL:
-  #   boards.greenhouse.io/<slug>, jobs.lever.co/<slug>,
-  #   jobs.ashbyhq.com/<slug>, <slug>.recruitee.com
-  # Check every slug with `jobpilot check-boards`.
-  greenhouse:
-    boards: [anthropic, stripe, airbnb]
-  lever:
-    boards:
-      - palantir
-      # Metrology / inspection
-      - gausslabs      # AI for semiconductor process control (Seoul, Palo Alto)
-      - lumafield      # industrial CT inspection & metrology (Boston, SF)
-  ashby:
-    boards: [openai, notion]
-  recruitee:
-    boards:
-      # Metrology / inspection
-      - invisix        # short-wavelength semiconductor metrology (Eindhoven)
-  # Workday career sites: paste the career-site URL from the browser.
-  # Workday has no documented public API; JobPilot reads the JSON the
-  # career site itself uses, throttled, and searches with your
-  # titles/keywords. Applying needs a Workday account, so these jobs get
-  # application packets (or review mode), never auto-submit.
-  workday:
-    max_pages: 5           # x20 jobs per search term per site
-    sites:
-      # Metrology / inspection
-      - {url: "https://kla.wd1.myworkdayjobs.com/Search", company: KLA}
-      # Chipmakers / semiconductor equipment
-      - {url: "https://micron.wd1.myworkdayjobs.com/External", company: Micron}
-      - {url: "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite", company: NVIDIA}
-      - {url: "https://intel.wd1.myworkdayjobs.com/External", company: Intel}
-      - {url: "https://amat.wd1.myworkdayjobs.com/External", company: Applied Materials}
-      # Host confirmed, site name not: open the career site, copy the URL,
-      # then run `jobpilot check-boards`.
-      # - {url: "https://lamresearch.wd1.myworkdayjobs.com/<site>", company: Lam Research}
-      # - {url: "https://thermofisher.wd5.myworkdayjobs.com/<site>", company: Thermo Fisher}
-  # Eightfold AI career sites (job URLs look like
-  # <host>/careers/job/<id>?domain=<domain>). Also undocumented JSON,
-  # throttled; applying happens on the company site (packets / review).
-  eightfold:
-    max_pages: 10          # x10 jobs per search term per site
-    sites:
-      - {url: "https://careers.qualcomm.com", domain: qualcomm.com, company: Qualcomm}
-  # Apple's own careers site (jobs.apple.com; undocumented JSON, throttled).
-  apple:
-    enabled: true
-    max_pages: 5           # x20 jobs per search term
-  # Metrology companies on career systems JobPilot cannot read yet
-  # (keyword search via adzuna/saramin still finds some of their postings):
-  #   AMD, Lam Research, Samsung, SK hynix, TSMC (own sites),
-  #   Google, Meta (own sites), Nova (Comeet), ASML (own site),
-  #   Onto Innovation, Camtek,
-  #   Nearfield Instruments, Zeiss SMT, Bruker, Lasertec, Park Systems,
-  #   Auros Technology, Nextin
+  # Your own extra companies (same format as jobpilot/catalog.yaml):
+  #   greenhouse: {boards: [<slug from boards.greenhouse.io/<slug>>]}
+  #   lever:      {boards: [<slug from jobs.lever.co/<slug>>]}
+  #   ashby:      {boards: [<slug from jobs.ashbyhq.com/<slug>>]}
+  #   recruitee:  {boards: [<slug from <slug>.recruitee.com>]}
+  #   workday:    {sites: [{url: "https://<co>.wd1.myworkdayjobs.com/<Site>", company: <Name>}]}
+  #   eightfold:  {sites: [{url: "https://careers.<co>.com", domain: <co>.com, company: <Name>}]}
+  # Check new entries with `jobpilot check-boards`.
+  #
+  # Not readable yet (own sites or other systems): AMD, Lam Research,
+  # Samsung, SK hynix, TSMC, Google, Meta, ASML, Nova (Comeet), Onto
+  # Innovation, Camtek, Nearfield Instruments, Zeiss SMT, Bruker, Lasertec,
+  # Park Systems, Auros Technology, Nextin.
   # Aggregators.
   remotive: {enabled: true}
   remoteok: {enabled: true}

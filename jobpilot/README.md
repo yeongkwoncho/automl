@@ -12,6 +12,14 @@
                               SQLite: 중복 제거 · 점수 · 지원 이력 · 일일 한도
 ```
 
+## 회사 목록 (자동)
+
+수집할 회사 목록은 `jobpilot/catalog.yaml`에 들어 있고 `config.yaml`에 자동으로 합쳐집니다.
+새 회사가 추가되면 `git pull`만 하면 다음 `jobpilot search`부터 수집되고, `config.yaml`을 고칠 필요가 없습니다.
+- 내 회사 추가: `config.yaml`의 `sources:`에 넣으면 기본 목록과 합쳐집니다(같은 회사는 한 번만).
+- 기본 목록에서 빼기: `catalog_exclude: [Apple, airbnb]`
+- 기본 목록 끄기: `catalog: false`
+
 ## 지원하는 소스
 
 | 소스 | 범위 | 인증 | 자동 제출 |
