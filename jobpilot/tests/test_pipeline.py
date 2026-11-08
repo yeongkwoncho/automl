@@ -284,7 +284,7 @@ def test_cli_registers_every_step_command():
   finally:
     argparse._SubParsersAction.add_parser = orig
   for cmd in ('search', 'refilter', 'match', 'apply', 'run', 'jobs', 'status',
-              'check-boards', 'mark', 'init', 'import-resume', 'serve'):
+              'check-boards', 'mark', 'init', 'import-resume', 'serve', 'companies'):
     assert cmd in seen, cmd
 
 
@@ -314,3 +314,40 @@ def test_selected_jobs_bypass_prefilter_and_min_score(tmp_path, profile, prefs):
   assert [r['title'] for r in store.report()] == ['Sales Manager']
   store.set_selected(only, False)
   assert store.selected_uids() == []
+
+
+def test_companies_command_flags_configured_but_empty(tmp_path, monkeypatch,
+                                                      capsys):
+  import yaml
+  from jobpilot.cli import main
+  monkeypatch.chdir(tmp_path)
+  main(['init'])
+  cfg = yaml.safe_load(open('config.yaml'))
+  cfg['sources'] = {
+      'greenhouse': {
+          'boards': ['stripe', 'my_co']
+      },
+      'apple': {
+          'enabled': True
+      }
+  }
+  yaml.safe_dump(cfg, open('config.yaml', 'w'))
+  store = Store('jobpilot.db')
+  store.add_job(make_job(external_id='stripe/1', company='Stripe'), None)
+  store.add_job(
+      make_job(external_id='stripe/2',
+               company='Stripe',
+               title='Account Executive'), 'title does not match')
+  # A board slug with "_" must not match other boards via LIKE wildcards.
+  store.add_job(make_job(external_id='myXco/1', company='Wrong'), None)
+  store.close()
+  capsys.readouterr()
+  main(['companies'])
+  out = capsys.readouterr().out
+  line = lambda board: next(l for l in out.splitlines() if f' {board} ' in l)
+  assert 'Stripe' in line('stripe') and line('stripe').split()[-2:] == [
+      '2', '1'
+  ]
+  assert 'nothing collected' in line('my_co')
+  assert 'nothing collected' in line('Apple')
+  assert 'Nothing collected for: my_co, Apple' in out

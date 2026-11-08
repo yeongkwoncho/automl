@@ -13,7 +13,7 @@ from jobpilot.agent import ProfileImporter
 from jobpilot.config import load_config, missing_profile_fields
 from jobpilot.llm import ClaudeLLM, LLMAuthError
 from jobpilot.pipeline import Pipeline
-from jobpilot.sources import check_boards
+from jobpilot.sources import check_boards, configured_boards
 from jobpilot.store import Store
 
 EXAMPLES = os.path.join(os.path.dirname(__file__), 'examples')
@@ -128,6 +128,36 @@ def cmd_jobs(args):
   store.close()
 
 
+def cmd_companies(args):
+  """Every configured company with what was actually collected for it."""
+  cfg = load_config(args.config)
+  store = Store(cfg.path(cfg.database))
+  rows = [(src, label, *store.prefix_counts(prefix))
+          for src, label, prefix in configured_boards(cfg.sources)]
+  print(f'{"source":11} {"board / site":30} {"company":22} '
+        f'{"collected":>9} {"passed":>6}')
+  missing = []
+  for src, label, n, passed, names in rows:
+    company = ', '.join(names) if names else '-'
+    flag = '' if n else '  <- nothing collected'
+    print(f'{src:11} {label[:30]:30} {company[:22]:22} {n:9} {passed:6}{flag}')
+    if not n:
+      missing.append(label)
+  others = store.db.execute(
+      "SELECT COUNT(DISTINCT company) FROM jobs WHERE uid LIKE 'remotive:%' "
+      "OR uid LIKE 'remoteok:%' OR uid LIKE 'arbeitnow:%' OR uid LIKE "
+      "'adzuna:%' OR uid LIKE 'saramin:%'").fetchone()[0]
+  store.close()
+  print(f'\n{len(rows)} configured companies; {others} more companies came '
+        'from aggregator boards (remotive, remoteok, ...).')
+  if missing:
+    print(f'Nothing collected for: {", ".join(missing)}. Run `jobpilot '
+          'check-boards`: an error there means the board/site is wrong; '
+          'a job count means only `jobpilot search` is needed.')
+  print('A company that is not listed here is not configured: add its board '
+        'to config.yaml (see the examples).')
+
+
 def cmd_serve(args):
   from jobpilot import web  # pylint: disable=g-import-not-at-top
   cfg = load_config(args.config)
@@ -213,6 +243,10 @@ def main(argv=None):
   p = sub.add_parser('run', help='search + match + apply')
   p.add_argument('--mode', choices=['dry_run', 'review', 'auto'])
   p.set_defaults(func=cmd_step)
+
+  sub.add_parser('companies',
+                 help='configured companies vs jobs collected').set_defaults(
+                     func=cmd_companies)
 
   p = sub.add_parser('serve', help='open the job browser web page')
   p.add_argument('--port', type=int, default=8765)

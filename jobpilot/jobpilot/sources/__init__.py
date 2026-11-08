@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 import httpx
 
+from jobpilot.sources.apple import AppleSource
 from jobpilot.sources.ats import (AshbySource, GreenhouseSource, LeverSource,
                                   RecruiteeSource)
 from jobpilot.sources.base import JobSource
@@ -15,7 +16,7 @@ from jobpilot.sources.boards import (AdzunaSource, ArbeitnowSource,
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['JobSource', 'build_sources', 'check_boards']
+__all__ = ['JobSource', 'build_sources', 'check_boards', 'configured_boards']
 
 _BOARD_SOURCES = (('greenhouse', GreenhouseSource), ('lever', LeverSource),
                   ('ashby', AshbySource), ('recruitee', RecruiteeSource))
@@ -35,6 +36,9 @@ def build_sources(cfg: dict, http: httpx.Client) -> List[JobSource]:
   ef = cfg.get('eightfold') or {}
   if ef.get('sites'):
     sources.append(EightfoldSource(http, ef['sites'], ef.get('max_pages', 10)))
+  if (cfg.get('apple') or {}).get('enabled'):
+    sources.append(AppleSource(http, max_pages=cfg['apple'].get('max_pages',
+                                                                5)))
 
   if (cfg.get('remotive') or {}).get('enabled'):
     sources.append(RemotiveSource(http, cfg['remotive'].get('limit', 100)))
@@ -74,6 +78,8 @@ def check_boards(cfg: dict, http: httpx.Client) -> List[Tuple[str, str, str]]:
             for name, cls in _BOARD_SOURCES]
   for name, cls in (('workday', WorkdaySource), ('eightfold', EightfoldSource)):
     checks.append((name, cls(http, []), (cfg.get(name) or {}).get('sites')))
+  if (cfg.get('apple') or {}).get('enabled'):
+    checks.append(('apple', AppleSource(http), ['jobs.apple.com']))
   for name, src, boards in checks:
     for board in boards or []:
       label = board if isinstance(board, str) else board.get('url', '')
@@ -85,3 +91,25 @@ def check_boards(cfg: dict, http: httpx.Client) -> List[Tuple[str, str, str]]:
       except (httpx.HTTPError, ValueError, KeyError) as e:
         rows.append((name, label, f'error: {e}'))
   return rows
+
+
+def configured_boards(cfg: dict) -> List[Tuple[str, str, str]]:
+  """(source, label, uid prefix) for every company board/site in config.
+
+  Collected jobs have uids starting with the prefix, which lets callers
+  count what each configured company actually produced.
+  """
+  from jobpilot.sources import eightfold, workday  # pylint: disable=g-import-not-at-top
+  out = []
+  for name, _ in _BOARD_SOURCES:
+    for board in (cfg.get(name) or {}).get('boards') or []:
+      out.append((name, board, f'{name}:{board}/'))
+  for entry in (cfg.get('workday') or {}).get('sites') or []:
+    site = workday.parse_site(entry)
+    out.append(('workday', site.company, f'workday:{site.tenant}/'))
+  for entry in (cfg.get('eightfold') or {}).get('sites') or []:
+    site = eightfold.parse_site(entry)
+    out.append(('eightfold', site.company, f'eightfold:{site.domain}/'))
+  if (cfg.get('apple') or {}).get('enabled'):
+    out.append(('apple', 'Apple', 'apple:'))
+  return out

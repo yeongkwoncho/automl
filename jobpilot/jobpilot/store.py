@@ -301,6 +301,20 @@ class Store:
                application=app))
     return out
 
+  def prefix_counts(self, prefix: str) -> Tuple[int, int, List[str]]:
+    """(collected, passed prefilter, company names) for uids with prefix."""
+    like = prefix.replace('%', '').replace('_', r'\_') + '%'
+    n, passed = self.db.execute(
+        "SELECT COUNT(*), SUM(filter_reason IS NULL) FROM jobs "
+        "WHERE uid LIKE ? ESCAPE '\\'", (like,)).fetchone()
+    names = [
+        r[0] for r in self.db.execute(
+            "SELECT json_extract(data, '$.company'), COUNT(*) AS c FROM jobs "
+            "WHERE uid LIKE ? ESCAPE '\\' GROUP BY 1 ORDER BY c DESC LIMIT 3", (
+                like,))
+    ]
+    return n or 0, passed or 0, names
+
   def source_counts(self) -> List[tuple]:
     return self.db.execute(
         "SELECT substr(uid, 1, instr(uid, ':') - 1) AS src, COUNT(*), "

@@ -66,8 +66,11 @@ sources:
     sites:
       # Metrology / inspection
       - {url: "https://kla.wd1.myworkdayjobs.com/Search", company: KLA}
-      # Chipmakers with large metrology teams
+      # Chipmakers / semiconductor equipment
       - {url: "https://micron.wd1.myworkdayjobs.com/External", company: Micron}
+      - {url: "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite", company: NVIDIA}
+      - {url: "https://intel.wd1.myworkdayjobs.com/External", company: Intel}
+      - {url: "https://amat.wd1.myworkdayjobs.com/External", company: Applied Materials}
       # Host confirmed, site name not: open the career site, copy the URL,
       # then run `jobpilot check-boards`.
       # - {url: "https://lamresearch.wd1.myworkdayjobs.com/<site>", company: Lam Research}
@@ -79,9 +82,15 @@ sources:
     max_pages: 10          # x10 jobs per search term per site
     sites:
       - {url: "https://careers.qualcomm.com", domain: qualcomm.com, company: Qualcomm}
+  # Apple's own careers site (jobs.apple.com; undocumented JSON, throttled).
+  apple:
+    enabled: true
+    max_pages: 5           # x20 jobs per search term
   # Metrology companies on career systems JobPilot cannot read yet
   # (keyword search via adzuna/saramin still finds some of their postings):
-  #   Nova (Comeet), ASML (own site), Onto Innovation, Camtek,
+  #   AMD, Lam Research, Samsung, SK hynix, TSMC (own sites),
+  #   Google, Meta (own sites), Nova (Comeet), ASML (own site),
+  #   Onto Innovation, Camtek,
   #   Nearfield Instruments, Zeiss SMT, Bruker, Lasertec, Park Systems,
   #   Auros Technology, Nextin
   # Aggregators.
