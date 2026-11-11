@@ -39,6 +39,7 @@ def make_pipeline(tmp_path,
   cfg = Config(preferences=prefs, output_dir=str(tmp_path / 'out'))
   cfg.apply.mode = mode
   cfg.apply.delay_seconds = 0
+  cfg.apply.tailor_cv = False  # CV generation is covered in test_cv.py
   for k, v in apply_kw.items():
     setattr(cfg.apply, k, v)
   store = Store(str(tmp_path / 'db.sqlite'))
@@ -284,7 +285,8 @@ def test_cli_registers_every_step_command():
   finally:
     argparse._SubParsersAction.add_parser = orig
   for cmd in ('search', 'refilter', 'match', 'apply', 'run', 'jobs', 'status',
-              'check-boards', 'mark', 'init', 'import-resume', 'serve', 'companies'):
+              'check-boards', 'mark', 'init', 'import-resume', 'serve',
+              'companies'):
     assert cmd in seen, cmd
 
 

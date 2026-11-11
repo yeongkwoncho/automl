@@ -36,6 +36,7 @@ apply:
   company_cooldown_days: 30
   delay_seconds: 45
   headless: false
+  tailor_cv: true          # write a position-specific CV and upload it instead of the master
 
 # Companies: JobPilot's built-in list (jobpilot/catalog.yaml: Anthropic,
 # Stripe, OpenAI, KLA, Micron, NVIDIA, Intel, Applied Materials, Qualcomm,

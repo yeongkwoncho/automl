@@ -30,6 +30,12 @@ CREATE TABLE IF NOT EXISTS applications (
   packet_dir TEXT,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS cvs (
+  uid TEXT PRIMARY KEY REFERENCES jobs(uid),
+  dir TEXT NOT NULL,
+  pdf TEXT,
+  created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS selections (
   uid TEXT PRIMARY KEY REFERENCES jobs(uid),
   selected_at TEXT NOT NULL
@@ -163,17 +169,54 @@ class Store:
       yield (Job.model_validate_json(job),
              MatchAssessment.model_validate_json(match), packet_dir)
 
+  # Tailored CVs.
+  def cv_candidates(
+      self,
+      min_score: int,
+      only: Optional[List[str]] = None) -> List[Tuple[Job, MatchAssessment]]:
+    """Scored jobs without a tailored CV yet, best fit first."""
+    q = ('SELECT j.data, m.data FROM matches m JOIN jobs j ON j.uid = m.uid '
+         'LEFT JOIN cvs c ON c.uid = m.uid WHERE c.uid IS NULL')
+    args: list = []
+    if only is None:
+      q += ' AND m.score >= ? AND j.filter_reason IS NULL'
+      args.append(min_score)
+    else:
+      if not only:
+        return []
+      q += f' AND j.uid IN ({",".join("?" * len(only))})'
+      args += list(only)
+    rows = self.db.execute(q + ' ORDER BY m.score DESC', args).fetchall()
+    return [(Job.model_validate_json(j), MatchAssessment.model_validate_json(m))
+            for j, m in rows]
+
+  def save_cv(self, uid: str, directory: str, pdf: Optional[str]):
+    with self.db:
+      self.db.execute('INSERT OR REPLACE INTO cvs VALUES (?, ?, ?, ?)',
+                      (uid, directory, pdf, _now()))
+
+  def cv(self, uid: str) -> Optional[Tuple[str, Optional[str]]]:
+    """(directory, pdf path or None) of the job's tailored CV."""
+    row = self.db.execute('SELECT dir, pdf FROM cvs WHERE uid = ?',
+                          (uid,)).fetchone()
+    return (row[0], row[1]) if row else None
+
+  def job_texts(self) -> Iterator[Job]:
+    for (data,) in self.db.execute('SELECT data FROM jobs'):
+      yield Job.model_validate_json(data)
+
   # Web page.
   def web_jobs(self) -> List[dict]:
     """Every collected job as a light row (no description) for the UI."""
     rows = self.db.execute(
         'SELECT j.uid, j.data, j.filter_reason, j.first_seen, m.score, '
-        'm.data, a.status, s.uid FROM jobs j '
+        'm.data, a.status, s.uid, c.uid FROM jobs j '
         'LEFT JOIN matches m ON m.uid = j.uid '
         'LEFT JOIN applications a ON a.uid = j.uid '
-        'LEFT JOIN selections s ON s.uid = j.uid')
+        'LEFT JOIN selections s ON s.uid = j.uid '
+        'LEFT JOIN cvs c ON c.uid = j.uid')
     out = []
-    for uid, data, reason, first_seen, score, mdata, app, sel in rows:
+    for uid, data, reason, first_seen, score, mdata, app, sel, cv in rows:
       j = json.loads(data)
       out.append({
           'uid': uid,
@@ -193,6 +236,7 @@ class Store:
           'verdict': json.loads(mdata)['verdict'] if mdata else None,
           'application': app,
           'selected': sel is not None,
+          'has_cv': cv is not None,
       })
     return out
 

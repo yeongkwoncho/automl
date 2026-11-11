@@ -187,7 +187,7 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
           <th data-sort="location" class="hide-sm">근무지</th>
           <th data-sort="source" class="hide-sm">출처</th>
           <th data-sort="posted">게시일</th>
-          <th data-sort="score">상태</th>
+          <th data-sort="score">적합도</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -208,11 +208,11 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
   const PAGE = 100;
   const $ = (id) => document.getElementById(id);
   const state = {
-    jobs: [], shown: PAGE, sort: 'posted', dir: -1,
+    jobs: [], shown: PAGE, sort: 'score', dir: -1,
     f: { q: '', status: 'passed', reasons: [], sources: [], companies: [],
          loc: '', remote: false, age: 0, score: 'any', apps: [], onlySel: false },
   };
-  const STORE_KEY = 'jobpilot.filters.v1';
+  const STORE_KEY = 'jobpilot.filters.v2';  // v2: default sort is fit
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (saved && saved.f) Object.assign(state.f, saved.f);
@@ -272,13 +272,16 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
     return true;
   }
 
+  const fitKey = (j) => j.score != null ? 1000 + j.score : (j.quick ?? -1);
   const sorters = {
     title: (a, b) => a.title.localeCompare(b.title),
     company: (a, b) => a.company.localeCompare(b.company),
     location: (a, b) => a.location.localeCompare(b.location),
     source: (a, b) => a.source.localeCompare(b.source),
     posted: (a, b) => (a.posted_at || a.first_seen).localeCompare(b.posted_at || b.first_seen),
-    score: (a, b) => (a.score ?? -1) - (b.score ?? -1),
+    // Claude-scored jobs rank above estimates; ties fall back to recency.
+    score: (a, b) => fitKey(a) - fitKey(b)
+      || (a.posted_at || a.first_seen).localeCompare(b.posted_at || b.first_seen),
   };
   function filtered() {
     const out = state.jobs.filter(j => matches(j));
@@ -336,7 +339,8 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
       const cls = j.score >= 75 ? 'b-ok' : j.score >= 60 ? 'b-warn' : 'b-bad';
       return el('span', { class: 'badge ' + cls, text: `${j.score}점` });
     }
-    return el('span', { class: 'badge b-mute', text: '평가 전' });
+    return el('span', { class: 'badge b-mute', text: j.quick != null ? `예상 ${j.quick}` : '평가 전',
+      title: j.quick != null ? '마스터 CV의 스킬·직무와 공고를 비교한 무료 추정치입니다. 정확한 점수는 jobpilot match로 평가합니다.' : '' });
   }
   function row(j) {
     const cb = el('input', { type: 'checkbox', 'aria-label': '선택' });
@@ -381,7 +385,7 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
     const sel = state.jobs.filter(j => j.selected).length;
     $('counts').replaceChildren('표시 ', el('b', { text: current.length.toLocaleString() }),
       ` / 전체 ${state.jobs.length.toLocaleString()} · 선택 `, el('b', { text: sel.toLocaleString() }));
-    $('hint').replaceChildren(...(sel ? ['다음 단계: ', el('code', { text: 'jobpilot match --selected' }), ' → ',
+    $('hint').replaceChildren(...(sel ? ['다음 단계: ', el('code', { text: 'jobpilot match --selected' }), ' → ', el('code', { text: 'jobpilot cv --selected' }), ' → ',
       el('code', { text: 'jobpilot apply --selected' })] : ['체크한 공고는 저장되어 터미널에서 사용할 수 있습니다.']));
   }
 
@@ -429,6 +433,7 @@ td.title a:hover { color: var(--accent); text-decoration: underline; }
     try { const r = await fetch('/api/job?uid=' + encodeURIComponent(j.uid)); if (r.ok) d = await r.json(); } catch (e) {}
     const links = [];
     if (safeUrl(j.url)) links.push(el('a', { href: j.url, target: '_blank', rel: 'noopener noreferrer', text: '공고 열기' }));
+    if (j.has_cv) links.push(' · ', el('a', { href: '/cv?uid=' + encodeURIComponent(j.uid), target: '_blank', rel: 'noopener', text: '맞춤 CV 보기' }));
     if (safeUrl(j.apply_url) && j.apply_url !== j.url)
       links.push(' · ', el('a', { href: j.apply_url, target: '_blank', rel: 'noopener noreferrer', text: '지원 페이지' }));
     const cb = el('button', { type: 'button', class: j.selected ? '' : 'primary', text: j.selected ? '선택 해제' : '이 공고 선택',

@@ -28,6 +28,9 @@ class ApplyConfig(BaseModel):
   delay_seconds: float = 45
   headless: bool = False
   chromium_path: Optional[str] = None
+  # Write a position-specific CV for each application and upload it
+  # instead of the master resume.
+  tailor_cv: bool = True
 
 
 class Config(BaseModel):

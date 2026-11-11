@@ -22,8 +22,9 @@ _INDEX = os.path.join(os.path.dirname(__file__), 'index.html')
 _MAX_BODY = 1 << 20
 
 
-def make_handler(store: Store, info: dict):
+def make_handler(store: Store, info: dict, scorer=None):
   lock = threading.Lock()
+  quick = {}  # uid -> local fit estimate, computed once per server run
 
   class Handler(http.server.BaseHTTPRequestHandler):
     server_version = 'JobPilot'
@@ -66,7 +67,22 @@ def make_handler(store: Store, info: dict):
       elif url.path == '/api/jobs':
         with lock:
           jobs = store.web_jobs()
+          if scorer and any(j['uid'] not in quick for j in jobs):
+            for job in store.job_texts():
+              if job.uid not in quick:
+                quick[job.uid] = scorer(job)
+        for j in jobs:
+          j['quick'] = quick.get(j['uid'])
         self._json(200, {'jobs': jobs, **info})
+      elif url.path == '/cv':
+        uid = (parse_qs(url.query).get('uid') or [''])[0]
+        with lock:
+          cv = store.cv(uid)
+        path = os.path.join(cv[0], 'cv.html') if cv else ''
+        if not os.path.isfile(path):
+          return self._json(404, {'error': 'no CV for this job'})
+        with open(path, 'rb') as f:
+          self._send(200, f.read(), 'text/html; charset=utf-8')
       elif url.path == '/api/job':
         uid = (parse_qs(url.query).get('uid') or [''])[0]
         with lock:
@@ -101,17 +117,20 @@ def make_handler(store: Store, info: dict):
 
 def make_server(store: Store,
                 port: int = 8765,
-                info: Optional[dict] = None) -> http.server.HTTPServer:
+                info: Optional[dict] = None,
+                scorer=None) -> http.server.HTTPServer:
   return http.server.ThreadingHTTPServer(('127.0.0.1', port),
-                                         make_handler(store, info or {}))
+                                         make_handler(store, info or {},
+                                                      scorer))
 
 
 def serve(store: Store,
           port: int = 8765,
           open_browser: bool = True,
-          info: Optional[dict] = None):
+          info: Optional[dict] = None,
+          scorer=None):
   try:
-    server = make_server(store, port, info)
+    server = make_server(store, port, info, scorer)
   except OSError as e:
     raise SystemExit(f'cannot listen on 127.0.0.1:{port} ({e.strerror}); '
                      'try --port 8766') from e

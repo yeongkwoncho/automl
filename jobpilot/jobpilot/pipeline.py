@@ -9,6 +9,7 @@ from typing import Callable, Dict, List, Optional
 import httpx
 
 from jobpilot.agent import Matcher, Tailor
+from jobpilot import cvgen
 from jobpilot.appliers import load_packet, write_packet
 from jobpilot.config import Config
 from jobpilot.filters import prefilter
@@ -17,6 +18,7 @@ from jobpilot.models import ApplyOutcome, CandidateProfile, Job
 from jobpilot.sources import JobSource, build_sources
 from jobpilot.sources.base import describe_error
 from jobpilot.store import Store
+from jobpilot.textutil import slugify
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +181,15 @@ class Pipeline:
           continue
         packet_dir = write_packet(output_dir, job, match, packet)
 
+      if ac.tailor_cv and self.store.cv(job.uid) is None:
+        try:
+          self.make_cv(job, match)
+        except LLMAuthError:
+          raise
+        except LLMError as e:
+          logger.warning('CV for %s failed, using the master resume: %s',
+                         job.uid, e)
+
       if applier is None:
         outcome = ApplyOutcome(status='packet_ready', detail='dry run')
       else:
@@ -191,6 +202,42 @@ class Pipeline:
         budget -= 1
         if ac.delay_seconds:
           self._sleep(ac.delay_seconds)
+    return counts
+
+  # Tailored CVs.
+  def make_cv(self, job: Job, match) -> Optional[str]:
+    """Writes the job's tailored CV; returns its PDF (or HTML) path."""
+    cv = self.tailor.cv(job, match)
+    name = f'{slugify(job.company)}-{slugify(job.title)}'[:80]
+    directory = os.path.join(self.cfg.path(self.cfg.output_dir), 'cv',
+                             f'{name}-{slugify(job.external_id)[-12:]}')
+    paths = cvgen.write_cv(directory, cv, self.profile,
+                           self.cfg.apply.chromium_path)
+    self.store.save_cv(job.uid, directory, paths.get('pdf'))
+    return paths.get('pdf') or paths['html']
+
+  def make_cvs(self,
+               limit: Optional[int] = None,
+               only: Optional[List[str]] = None) -> Dict[str, int]:
+    """Tailored CVs for the best-scored jobs that do not have one yet."""
+    counts = {'created': 0, 'errors': 0}
+    todo = self.store.cv_candidates(self.cfg.apply.min_score, only)[:limit]
+    if not todo:
+      logger.info(
+          'no scored jobs need a CV%s. Scores come from `jobpilot '
+          'match`.', ' among the selected ones'
+          if only else f' at or above min_score {self.cfg.apply.min_score}')
+    for job, match in todo:
+      try:
+        path = self.make_cv(job, match)
+        counts['created'] += 1
+        logger.info('CV for %s @ %s (%d): %s', job.title, job.company,
+                    match.score, path)
+      except LLMAuthError:
+        raise
+      except LLMError as e:
+        logger.warning('CV for %s failed: %s', job.uid, e)
+        counts['errors'] += 1
     return counts
 
   def run(self) -> Dict[str, Dict[str, int]]:
@@ -214,8 +261,12 @@ class Pipeline:
         self.profile.resume_path):
       return ApplyOutcome(status='needs_manual',
                           detail='resume_path missing; cannot upload resume')
+    profile = self.profile
+    cv = self.store.cv(job.uid)
+    if cv and cv[1] and os.path.exists(cv[1]):
+      profile = profile.model_copy(update={'resume_path': cv[1]})
     try:
-      return applier.apply(job, packet, self.profile, packet_dir, answer_fn)
+      return applier.apply(job, packet, profile, packet_dir, answer_fn)
     except LLMAuthError:
       raise
     except LLMError as e:

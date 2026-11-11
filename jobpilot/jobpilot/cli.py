@@ -61,13 +61,17 @@ def cmd_step(args):
   try:
     if args.command == 'search':
       result = pipe.search()
-    elif args.command in ('match', 'apply'):
+    elif args.command in ('match', 'apply', 'cv'):
       only = None
       if args.selected:
         only = store.selected_uids()
         if not only:
           sys.exit('no jobs selected; pick some in `jobpilot serve` first')
-      step = pipe.match if args.command == 'match' else pipe.apply
+      step = {
+          'match': pipe.match,
+          'apply': pipe.apply,
+          'cv': pipe.make_cvs
+      }[args.command]
       result = step(limit=args.limit, only=only)
     elif args.command == 'refilter':
       result = pipe.refilter()
@@ -166,8 +170,15 @@ def cmd_serve(args):
       'preferences': cfg.preferences.model_dump(),
       'min_score': cfg.apply.min_score
   }
+  scorer = None
   try:
-    web.serve(store, args.port, not args.no_open, info)
+    from jobpilot.fit import quick_fit  # pylint: disable=g-import-not-at-top
+    profile = cfg.load_profile()
+    scorer = lambda job: quick_fit(profile, cfg.preferences, job)
+  except (OSError, ValueError) as e:
+    print(f'profile not loaded ({e}); fit estimates are off', file=sys.stderr)
+  try:
+    web.serve(store, args.port, not args.no_open, info, scorer)
   finally:
     store.close()
 
@@ -229,6 +240,7 @@ def main(argv=None):
       help='re-apply preferences to stored jobs (no network)').set_defaults(
           func=cmd_step)
   for name, help_ in (('match', 'score new jobs with Claude'),
+                      ('cv', 'write position-specific CVs for top matches'),
                       ('apply', 'tailor and apply to top matches')):
     p = sub.add_parser(name, help=help_)
     p.add_argument('--limit', type=int)

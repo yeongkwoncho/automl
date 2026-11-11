@@ -49,7 +49,12 @@ def server(tmp_path):
                       gaps=[],
                       dealbreakers=[],
                       seniority_fit='match'))
-  srv = web.make_server(store, 0, {'min_score': 75})
+  cvdir = tmp_path / 'cv1'
+  cvdir.mkdir()
+  (cvdir / 'cv.html').write_text('<h1>Tailored CV</h1>')
+  store.save_cv('workday:kla/1', str(cvdir), None)
+  srv = web.make_server(store, 0, {'min_score': 75},
+                        scorer=lambda job: 70 if 'ML' in job.title else 10)
   t = threading.Thread(target=srv.serve_forever, daemon=True)
   t.start()
   yield f'http://127.0.0.1:{srv.server_port}', store
@@ -86,6 +91,13 @@ def test_api(server):
   assert kla['score'] == 88 and kla['verdict'] == 'strong'
   assert kla['source'] == 'workday' and not kla['selected']
   assert 'description' not in kla  # list stays light
+  assert kla['has_cv'] and kla['quick'] == 10
+  ml = next(j for j in data['jobs'] if j['title'] == 'ML Engineer')
+  assert ml['quick'] == 70 and not ml['has_cv']
+  with urllib.request.urlopen(base + '/cv?uid=workday:kla/1') as r:
+    assert b'Tailored CV' in r.read()
+  with pytest.raises(urllib.error.HTTPError):
+    urllib.request.urlopen(base + '/cv?uid=nope')
   status, d = get(base + '/api/job?uid=' + urllib.request.quote(kla['uid']))
   assert d['match']['summary'] == 'Great fit' and d['description'] == 'PyTorch'
 
@@ -134,6 +146,10 @@ def test_page_filters_and_selection(server, tmp_path):
     rows = lambda: page.locator('#rows tr').count()
     # Default view: jobs that passed the prefilter.
     assert rows() == 2
+    # Ranked by fit: the Claude-scored job first, then by local estimate.
+    first = page.locator('#rows tr').nth(0).inner_text()
+    assert 'Metrology Engineer' in first and '88점' in first
+    assert '예상 70' in page.locator('#rows tr').nth(1).inner_text()
     # Companies whose jobs were all filtered out are still listed (dimmed),
     # and picking one explains why the list is empty.
     evil = page.locator('#companies label', has_text='Evil')

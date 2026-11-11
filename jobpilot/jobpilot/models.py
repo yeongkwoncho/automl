@@ -156,6 +156,25 @@ class TailoredApplication(BaseModel):
   answers: List[QuestionAnswer]
 
 
+class CVExperience(BaseModel):
+  company: str = Field(description='Exactly as in the master profile.')
+  title: str = Field(description='Exactly as in the master profile.')
+  start: str
+  end: str
+  bullets: List[str]
+
+
+class TailoredCV(BaseModel):
+  """A position-specific version of the master CV (same facts, refocused)."""
+  headline: str
+  summary: str
+  skills: List[str] = Field(
+      description='Subset of the master skills, most relevant first.')
+  experience: List[CVExperience]
+  education: List[Education]
+  languages: List[str]
+
+
 ApplicationStatus = Literal['packet_ready', 'submitted', 'needs_manual',
                             'skipped', 'failed']
 
