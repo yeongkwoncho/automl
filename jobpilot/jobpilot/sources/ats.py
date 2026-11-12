@@ -9,7 +9,7 @@ from typing import Iterator, List
 import httpx
 
 from jobpilot.models import Job, Preferences
-from jobpilot.sources.base import JobSource, describe_error
+from jobpilot.sources.base import USER_AGENT, JobSource, describe_error
 from jobpilot.textutil import html_to_text, parse_datetime
 
 logger = logging.getLogger(__name__)
@@ -172,3 +172,140 @@ class RecruiteeSource(_BoardSource):
           tags=[j['department']] if j.get('department') else [],
           ats='recruitee',
       )
+
+
+class PinpointSource(_BoardSource):
+  """Pinpoint career sites (<board>.pinpointhq.com), common in the UK.
+
+  Reads the public postings feed: /postings.json, then /jobs.rss if the
+  JSON one is unavailable. Field names are not documented to us, so
+  several layouts are accepted; `check-boards` reports which feed worked.
+  """
+  name = 'pinpoint'
+  HOST = 'https://{board}.pinpointhq.com'
+
+  def _feed(self, board: str):
+    """Returns ('json', postings) or ('rss', postings) as dicts."""
+    base = self.HOST.format(board=board)
+    try:
+      data = self._get_json(base + '/postings.json')
+      items = data.get('data', data) if isinstance(data, dict) else data
+      return 'json', [_pinpoint_json(p, base) for p in items or []]
+    except (httpx.HTTPStatusError, ValueError) as e:
+      if isinstance(
+          e, httpx.HTTPStatusError) and e.response.status_code not in (400, 404,
+                                                                       406):
+        raise
+    resp = self.http.get(base + '/jobs.rss', headers={'User-Agent': USER_AGENT})
+    resp.raise_for_status()
+    return 'rss', _pinpoint_rss(resp.text, base)
+
+  def check(self, board: str) -> str:
+    kind, postings = self._feed(board)
+    return f'{len(postings)} jobs ({kind} feed)'
+
+  def fetch_board(self, board: str) -> Iterator[Job]:
+    _, postings = self._feed(board)
+    for p in postings:
+      if not p.get('title') or not p.get('url'):
+        continue
+      yield Job(
+          source=self.name,
+          external_id=f'{board}/{p["id"]}',
+          title=p['title'],
+          company=p.get('company') or board,
+          url=p['url'],
+          apply_url=p['url'],
+          location=p.get('location', ''),
+          remote=p.get('remote'),
+          description=p.get('description', ''),
+          posted_at=p.get('posted_at'),
+          employment_type=p.get('employment_type'),
+          tags=[t for t in [p.get('department')] if t],
+          ats='pinpoint',
+      )
+
+
+def _first(d: dict, *keys):
+  for k in keys:
+    v = d.get(k)
+    if v not in (None, '', []):
+      return v
+  return None
+
+
+def _text(v) -> str:
+  """A string from a value that may be a string or a {name|title: ...}."""
+  if isinstance(v, dict):
+    v = _first(v, 'name', 'title', 'label', 'text')
+  return str(v).strip() if v not in (None, '') else ''
+
+
+def _pinpoint_json(p: dict, base: str) -> dict:
+  p = p.get('attributes', p) if isinstance(p.get('attributes'), dict) else p
+  pid = _first(p, 'id', 'uuid') or _first(p, 'path', 'url') or ''
+  url = _first(p, 'url', 'path', 'link') or ''
+  if url.startswith('/'):
+    url = base + url
+  if not url and pid:
+    url = f'{base}/postings/{pid}'
+  loc = p.get('location')
+  if isinstance(loc, dict):
+    loc = ', '.join(x for x in (_text(loc.get('city')),
+                                _text(loc.get('province') or loc.get('region')),
+                                _text(loc.get('name'))) if x) or _text(loc)
+  workplace = str(_first(p, 'workplace_type', 'workplaceType') or '').lower()
+  desc = '\n\n'.join(
+      html_to_text(str(p[k]))
+      for k in ('description', 'key_responsibilities',
+                'skills_knowledge_expertise', 'benefits', 'requirements')
+      if p.get(k))
+  return {
+      'id':
+          str(pid).rstrip('/').split('/')[-1],
+      'title':
+          _text(_first(p, 'title', 'name')),
+      'url':
+          url,
+      'location':
+          _text(loc),
+      'remote': ('remote' in workplace or 'hybrid' in workplace) or None,
+      'description':
+          desc,
+      'employment_type':
+          _text(_first(p, 'employment_type', 'employmentType')),
+      'department':
+          _text(_first(p, 'department', 'job_department')),
+      'company':
+          _text(_first(p, 'company', 'company_name')),
+      'posted_at':
+          parse_datetime(_first(p, 'published_at', 'publishedAt',
+                                'created_at')),
+  }
+
+
+def _pinpoint_rss(xml: str, base: str) -> list:
+  import xml.etree.ElementTree as ET  # pylint: disable=g-import-not-at-top
+  root = ET.fromstring(xml)
+  out = []
+  for item in root.iter('item'):
+    get = lambda tag: (item.findtext(tag) or '').strip()
+    link = get('link') or get('guid')
+    out.append({
+        'id': link.rstrip('/').split('/')[-1] or get('guid'),
+        'title': get('title'),
+        'url': link,
+        'location': get('location') or get('{*}location'),
+        'description': html_to_text(get('description')),
+        'posted_at': _rss_date(get('pubDate')),
+        'department': get('category'),
+    })
+  return out
+
+
+def _rss_date(value: str):
+  from email.utils import parsedate_to_datetime  # pylint: disable=g-import-not-at-top
+  try:
+    return parsedate_to_datetime(value) if value else None
+  except (TypeError, ValueError):
+    return None

@@ -53,7 +53,8 @@ def server(tmp_path):
   cvdir.mkdir()
   (cvdir / 'cv.html').write_text('<h1>Tailored CV</h1>')
   store.save_cv('workday:kla/1', str(cvdir), None)
-  srv = web.make_server(store, 0, {'min_score': 75},
+  srv = web.make_server(store,
+                        0, {'min_score': 75},
                         scorer=lambda job: 70 if 'ML' in job.title else 10)
   t = threading.Thread(target=srv.serve_forever, daemon=True)
   t.start()

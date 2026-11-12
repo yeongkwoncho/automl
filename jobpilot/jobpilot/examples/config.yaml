@@ -51,6 +51,7 @@ sources:
   #   lever:      {boards: [<slug from jobs.lever.co/<slug>>]}
   #   ashby:      {boards: [<slug from jobs.ashbyhq.com/<slug>>]}
   #   recruitee:  {boards: [<slug from <slug>.recruitee.com>]}
+  #   pinpoint:   {boards: [<slug from <slug>.pinpointhq.com>]}
   #   workday:    {sites: [{url: "https://<co>.wd1.myworkdayjobs.com/<Site>", company: <Name>}]}
   #   eightfold:  {sites: [{url: "https://careers.<co>.com", domain: <co>.com, company: <Name>}]}
   # Check new entries with `jobpilot check-boards`.

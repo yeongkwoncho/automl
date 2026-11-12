@@ -6,7 +6,7 @@ import httpx
 
 from jobpilot.sources.apple import AppleSource
 from jobpilot.sources.ats import (AshbySource, GreenhouseSource, LeverSource,
-                                  RecruiteeSource)
+                                  PinpointSource, RecruiteeSource)
 from jobpilot.sources.base import JobSource
 from jobpilot.sources.eightfold import EightfoldSource
 from jobpilot.sources.workday import WorkdaySource
@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 __all__ = ['JobSource', 'build_sources', 'check_boards', 'configured_boards']
 
 _BOARD_SOURCES = (('greenhouse', GreenhouseSource), ('lever', LeverSource),
-                  ('ashby', AshbySource), ('recruitee', RecruiteeSource))
+                  ('ashby', AshbySource), ('recruitee', RecruiteeSource),
+                  ('pinpoint', PinpointSource))
 
 
 def build_sources(cfg: dict, http: httpx.Client) -> List[JobSource]:

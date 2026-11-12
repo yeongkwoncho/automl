@@ -14,6 +14,9 @@ ashby:
 recruitee:
   boards:
     - invisix        # short-wavelength semiconductor metrology (Eindhoven)
+pinpoint:
+  boards:
+    - plessey        # microLED / GaN-on-silicon semiconductors (Plymouth, UK)
 workday:
   max_pages: 5
   sites:

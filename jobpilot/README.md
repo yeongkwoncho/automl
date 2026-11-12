@@ -28,6 +28,7 @@
 | Lever 채용 보드 | 회사별 | 없음 | ✅ |
 | Ashby 채용 보드 | 회사별 (OpenAI, Notion …) | 없음 | ✅ |
 | Recruitee 채용 보드 | 회사별, 유럽에 많음 (Invisix …) | 없음 | review 모드만 |
+| Pinpoint 채용 보드 | 회사별, 영국에 많음 (Plessey …) | 없음 | 수동 패킷 |
 | Workday 채용 사이트 | 회사별, 대기업 (KLA, Micron …) | 없음 | 수동 패킷 (Workday 계정 필요) |
 | Eightfold 채용 사이트 | 회사별, 대기업 (Qualcomm …) | 없음 | 수동 패킷 |
 | Apple 채용 사이트 | Apple (jobs.apple.com) | 없음 | 수동 패킷 |
@@ -141,7 +142,7 @@ jobpilot status                    # 이력 보기
 
 ```
 jobpilot/
-  sources/ats.py        Greenhouse · Lever · Ashby · Recruitee
+  sources/ats.py        Greenhouse · Lever · Ashby · Recruitee · Pinpoint
   sources/workday.py    Workday 채용 사이트
   sources/eightfold.py  Eightfold 채용 사이트
   sources/apple.py      Apple 채용 사이트

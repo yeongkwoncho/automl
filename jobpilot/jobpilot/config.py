@@ -62,7 +62,7 @@ class Config(BaseModel):
 
 
 CATALOG = os.path.join(os.path.dirname(__file__), 'catalog.yaml')
-_BOARD_KEYS = ('greenhouse', 'lever', 'ashby', 'recruitee')
+_BOARD_KEYS = ('greenhouse', 'lever', 'ashby', 'recruitee', 'pinpoint')
 _SITE_KEYS = ('workday', 'eightfold')
 
 
