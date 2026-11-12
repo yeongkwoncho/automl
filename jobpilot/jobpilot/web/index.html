@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobPilot 공고</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5d6673;
+  --line: #e2e5ea; --accent: #2457d6; --accent-weak: #e8eefc;
+  --ok: #1d7a46; --ok-weak: #e3f4ea; --warn: #9a5b00; --warn-weak: #fbf0dc;
+  --bad: #b3261e; --bad-weak: #fbe7e5; --row-hover: #f1f4fa; --sel: #fff8d6;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121418; --panel: #1b1e24; --text: #e6e8eb; --muted: #9aa3ae;
+    --line: #2c3139; --accent: #7ea2ff; --accent-weak: #22304f;
+    --ok: #6fd39b; --ok-weak: #18352a; --warn: #f1b45a; --warn-weak: #3a2c14;
+    --bad: #ff8a80; --bad-weak: #3d1f1d; --row-hover: #22262e; --sel: #33301a;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+  "Segoe UI", "Noto Sans KR", sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel);
+  border-bottom: 1px solid var(--line); padding: 10px 16px;
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0; }
+#q { flex: 1 1 260px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; }
+.counts { color: var(--muted); white-space: nowrap; }
+.counts b { color: var(--text); }
+button { font: inherit; border: 1px solid var(--line); background: var(--panel);
+  color: var(--text); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { button.primary { color: #0d1220; } }
+.layout { display: grid; grid-template-columns: 270px 1fr; gap: 16px; padding: 16px;
+  max-width: 1500px; margin: 0 auto; }
+aside { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px; align-self: start; position: sticky; top: 64px;
+  max-height: calc(100vh - 80px); overflow: auto; }
+aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); margin: 14px 0 6px; }
+aside h2:first-child { margin-top: 0; }
+.opt { display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer; }
+.opt span.n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.opt input { margin: 0; }
+.opt.zero { color: var(--muted); }
+.scroll { max-height: 190px; overflow: auto; border: 1px solid var(--line);
+  border-radius: 8px; padding: 4px 8px; }
+aside input[type=text], aside select { width: 100%; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg label { flex: 1; text-align: center; padding: 5px 4px; cursor: pointer; font-size: 13px; }
+.seg input { display: none; }
+.seg label:has(input:checked) { background: var(--accent-weak); color: var(--accent); font-weight: 600; }
+main { min-width: 0; }
+.bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.bar .hint { color: var(--muted); margin-left: auto; }
+code { background: var(--accent-weak); color: var(--accent); padding: 1px 6px; border-radius: 6px;
+  font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.table { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--panel);
+  cursor: pointer; user-select: none; white-space: nowrap; position: sticky; top: 0; }
+th.nosort { cursor: default; }
+th .arrow { color: var(--accent); }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--row-hover); }
+tbody tr.selected { background: var(--sel); }
+td.title a { color: var(--text); font-weight: 600; text-decoration: none; }
+td.title a:hover { color: var(--accent); text-decoration: underline; }
+.sub { color: var(--muted); font-size: 12.5px; }
+.badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px;
+  white-space: nowrap; }
+.b-ok { background: var(--ok-weak); color: var(--ok); }
+.b-warn { background: var(--warn-weak); color: var(--warn); }
+.b-bad { background: var(--bad-weak); color: var(--bad); }
+.b-mute { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+.more { display: block; margin: 12px auto; }
+#drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%);
+  background: var(--panel); border-left: 1px solid var(--line); z-index: 10;
+  transform: translateX(100%); transition: transform .18s ease; display: flex; flex-direction: column; }
+#drawer.open { transform: none; box-shadow: -12px 0 30px rgba(0,0,0,.18); }
+#drawer .head { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; }
+#drawer .head h3 { margin: 0; font-size: 16px; flex: 1; }
+#drawer .body { padding: 14px 16px; overflow: auto; }
+#drawer .desc { white-space: pre-wrap; font-size: 13.5px; }
+#drawer ul { margin: 4px 0 10px; padding-left: 18px; }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px;
+  opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+#toast.show { opacity: 1; }
+#filtersToggle { display: none; }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; padding: 12px; }
+  aside { position: static; max-height: none; display: none; }
+  aside.open { display: block; }
+  #filtersToggle { display: inline-block; }
+  th.hide-sm, td.hide-sm { display: none; }
+  .bar .hint { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>JobPilot</h1>
+  <button id="filtersToggle" type="button">필터</button>
+  <input id="q" type="search" placeholder="직무, 회사, 근무지 검색 (공백으로 여러 단어)" autocomplete="off">
+  <span class="counts" id="counts">불러오는 중…</span>
+</header>
+
+<div class="layout">
+  <aside id="filters">
+    <h2>1차 필터 결과</h2>
+    <div class="seg" id="status">
+      <label><input type="radio" name="status" value="all">전체</label>
+      <label><input type="radio" name="status" value="passed" checked>통과</label>
+      <label><input type="radio" name="status" value="rejected">걸러짐</label>
+    </div>
+
+    <div id="reasonBox">
+      <h2>걸러진 이유</h2>
+      <div id="reasons"></div>
+    </div>
+
+    <h2>출처</h2>
+    <div id="sources"></div>
+
+    <h2>회사</h2>
+    <input type="search" id="companyQ" placeholder="회사 검색 (Enter: 첫 결과 선택)" autocomplete="off">
+    <div class="scroll" id="companies" style="margin-top:6px"></div>
+
+    <h2>근무지</h2>
+    <input type="text" id="loc" placeholder="예: Seoul, Singapore">
+    <label class="opt" style="margin-top:6px"><input type="checkbox" id="remote"> 원격만</label>
+
+    <h2>게시일</h2>
+    <select id="age">
+      <option value="0">전체</option>
+      <option value="3">3일 이내</option>
+      <option value="7">7일 이내</option>
+      <option value="14">14일 이내</option>
+      <option value="30">30일 이내</option>
+      <option value="90">90일 이내</option>
+    </select>
+
+    <h2>적합도 점수</h2>
+    <select id="score">
+      <option value="any">전체 (평가 전 포함)</option>
+      <option value="scored">평가된 공고만</option>
+      <option value="85">85점 이상</option>
+      <option value="75">75점 이상</option>
+      <option value="60">60점 이상</option>
+      <option value="unscored">평가 전만</option>
+    </select>
+
+    <h2>지원 상태</h2>
+    <div id="apps"></div>
+
+    <h2>선택</h2>
+    <label class="opt"><input type="checkbox" id="onlySel"> 선택한 공고만 보기</label>
+
+    <p><button type="button" id="reset" style="width:100%;margin-top:12px">필터 초기화</button></p>
+  </aside>
+
+  <main>
+    <div class="bar">
+      <button type="button" class="primary" id="selAll">보이는 공고 모두 선택</button>
+      <button type="button" id="unselAll">보이는 공고 선택 해제</button>
+      <button type="button" id="export">선택 CSV 내보내기</button>
+      <span class="hint" id="hint"></span>
+    </div>
+    <div class="table">
+      <table>
+        <thead><tr>
+          <th class="nosort" style="width:34px"><input type="checkbox" id="pageCheck" aria-label="이 페이지 모두 선택"></th>
+          <th data-sort="title">직무</th>
+          <th data-sort="company">회사</th>
+          <th data-sort="location" class="hide-sm">근무지</th>
+          <th data-sort="source" class="hide-sm">출처</th>
+          <th data-sort="posted">게시일</th>
+          <th data-sort="score">적합도</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden>조건에 맞는 공고가 없습니다.</div>
+    </div>
+    <button type="button" class="more" id="more" hidden>더 보기</button>
+  </main>
+</div>
+
+<div id="drawer" aria-hidden="true">
+  <div class="head"><h3 id="dTitle"></h3><button type="button" id="dClose">닫기</button></div>
+  <div class="body" id="dBody"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+(() => {
+  const PAGE = 100;
+  const $ = (id) => document.getElementById(id);
+  const state = {
+    jobs: [], shown: PAGE, sort: 'score', dir: -1,
+    f: { q: '', status: 'passed', reasons: [], sources: [], companies: [],
+         loc: '', remote: false, age: 0, score: 'any', apps: [], onlySel: false },
+  };
+  const STORE_KEY = 'jobpilot.filters.v2';  // v2: default sort is fit
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    if (saved && saved.f) Object.assign(state.f, saved.f);
+    if (saved && saved.sort) { state.sort = saved.sort; state.dir = saved.dir; }
+  } catch (e) { /* storage unavailable: use defaults */ }
+  const persist = () => {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ f: state.f, sort: state.sort, dir: state.dir })); }
+    catch (e) { /* ignore */ }
+  };
+
+  const reasonKind = (r) => (r || '').split(':')[0];
+  // Case-, space- and punctuation-insensitive form for name search
+  // ("Gauss Labs" finds "gausslabs", "KLA" finds "kla").
+  const norm = (s) => String(s).toLowerCase().normalize('NFKC').replace(/[\s\-_.,&'()]/g, '');
+  const safeUrl = (u) => /^https?:\/\//i.test(u || '') ? u : null;
+  const daysAgo = (d) => d ? (Date.now() - Date.parse(d)) / 864e5 : Infinity;
+  const toast = (msg) => { const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200); };
+  const el = (tag, props = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v;
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v);
+    }
+    for (const k of kids) if (k != null) n.append(k);
+    return n;
+  };
+
+  // ---- filtering ----
+  function matches(j, skip) {
+    const f = state.f;
+    if (skip !== 'status') {
+      if (f.status === 'passed' && j.filter_reason) return false;
+      if (f.status === 'rejected' && !j.filter_reason) return false;
+    }
+    if (skip !== 'reasons' && f.reasons.length && f.status !== 'passed'
+        && !f.reasons.includes(reasonKind(j.filter_reason))) return false;
+    if (skip !== 'sources' && f.sources.length && !f.sources.includes(j.source)) return false;
+    if (skip !== 'companies' && f.companies.length && !f.companies.includes(j.company)) return false;
+    if (f.loc) {
+      const parts = f.loc.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+      const L = j.location.toLowerCase();
+      if (parts.length && !parts.some(p => L.includes(p))) return false;
+    }
+    if (f.remote && !(j.remote || /remote/i.test(j.location))) return false;
+    if (f.age && daysAgo(j.posted_at || j.first_seen) > f.age) return false;
+    if (f.score === 'scored' && j.score == null) return false;
+    if (f.score === 'unscored' && j.score != null) return false;
+    if (/^\d+$/.test(f.score) && !(j.score >= +f.score)) return false;
+    if (skip !== 'apps' && f.apps.length && !f.apps.includes(j.application || 'none')) return false;
+    if (f.onlySel && !j.selected) return false;
+    if (f.q) {
+      const hay = (j.title + ' ' + j.company + ' ' + j.location + ' ' + j.tags.join(' ')).toLowerCase();
+      for (const term of f.q.toLowerCase().split(/\s+/).filter(Boolean))
+        if (!hay.includes(term)) return false;
+    }
+    return true;
+  }
+
+  const fitKey = (j) => j.score != null ? 1000 + j.score : (j.quick ?? -1);
+  const sorters = {
+    title: (a, b) => a.title.localeCompare(b.title),
+    company: (a, b) => a.company.localeCompare(b.company),
+    location: (a, b) => a.location.localeCompare(b.location),
+    source: (a, b) => a.source.localeCompare(b.source),
+    posted: (a, b) => (a.posted_at || a.first_seen).localeCompare(b.posted_at || b.first_seen),
+    // Claude-scored jobs rank above estimates; ties fall back to recency.
+    score: (a, b) => fitKey(a) - fitKey(b)
+      || (a.posted_at || a.first_seen).localeCompare(b.posted_at || b.first_seen),
+  };
+  function filtered() {
+    const out = state.jobs.filter(j => matches(j));
+    const cmp = sorters[state.sort] || sorters.posted;
+    return out.sort((a, b) => cmp(a, b) * state.dir);
+  }
+
+  // ---- facets (counts reflect the other active filters) ----
+  // Every value ever collected is listed, so a company never vanishes from
+  // the list; the count is what the other active filters leave (0 = dimmed).
+  function facet(container, key, valuesOf, label, skip, query) {
+    const totals = new Map(), counts = new Map();
+    for (const j of state.jobs) {
+      const v = valuesOf(j); if (v == null) continue;
+      totals.set(v, (totals.get(v) || 0) + 1);
+      if (matches(j, skip)) counts.set(v, (counts.get(v) || 0) + 1);
+    }
+    for (const v of state.f[key]) if (!totals.has(v)) totals.set(v, 0);
+    const box = $(container); box.replaceChildren();
+    const entries = [...totals.keys()].map(v => [v, counts.get(v) || 0, totals.get(v)])
+      .sort((a, b) => b[1] - a[1] || b[2] - a[2] || String(a[0]).localeCompare(String(b[0])));
+    if (!entries.length) box.append(el('div', { class: 'sub', text: '없음' }));
+    const q = norm(query || '');
+    let shown = 0;
+    for (const [v, n, total] of entries) {
+      // While searching, keep checked values visible so they can be unchecked.
+      if (q && !norm(label(v)).includes(q) && !state.f[key].includes(v)) continue;
+      shown++;
+      const cb = el('input', { type: 'checkbox' });
+      cb.checked = state.f[key].includes(v);
+      cb.addEventListener('change', () => {
+        state.f[key] = cb.checked ? [...state.f[key], v] : state.f[key].filter(x => x !== v);
+        refresh();
+      });
+      box.append(el('label', { class: 'opt' + (n ? '' : ' zero'),
+        title: n === total ? `${total}건` : `현재 필터에서 ${n}건 / 전체 ${total}건` },
+        cb, el('span', { text: label(v) }), el('span', { class: 'n', text: n === total ? n : `${n} / ${total}` })));
+    }
+    if (q && !shown) box.append(el('div', { class: 'sub', text: `'${query}'와 일치하는 회사가 없습니다.` }));
+  }
+  function renderCompanies() {
+    facet('companies', 'companies', j => j.company, v => v, 'companies', $('companyQ').value);
+  }
+  const APP_LABEL = { none: '미지원', packet_ready: '지원 자료 준비됨', submitted: '제출됨',
+    needs_manual: '수동 처리 필요', skipped: '건너뜀', failed: '실패' };
+
+  // ---- table ----
+  function statusBadge(j) {
+    if (j.application) {
+      const cls = j.application === 'submitted' ? 'b-ok' : j.application === 'failed' ? 'b-bad' : 'b-warn';
+      return el('span', { class: 'badge ' + cls, text: APP_LABEL[j.application] || j.application });
+    }
+    if (j.filter_reason) return el('span', { class: 'badge b-mute', text: j.filter_reason, title: '1차 필터에서 걸러짐' });
+    if (j.score != null) {
+      const cls = j.score >= 75 ? 'b-ok' : j.score >= 60 ? 'b-warn' : 'b-bad';
+      return el('span', { class: 'badge ' + cls, text: `${j.score}점` });
+    }
+    return el('span', { class: 'badge b-mute', text: j.quick != null ? `예상 ${j.quick}` : '평가 전',
+      title: j.quick != null ? '마스터 CV의 스킬·직무와 공고를 비교한 무료 추정치입니다. 정확한 점수는 jobpilot match로 평가합니다.' : '' });
+  }
+  function row(j) {
+    const cb = el('input', { type: 'checkbox', 'aria-label': '선택' });
+    cb.checked = j.selected;
+    cb.addEventListener('click', (e) => { e.stopPropagation(); select([j], cb.checked); });
+    const url = safeUrl(j.url);
+    const title = url ? el('a', { href: url, target: '_blank', rel: 'noopener noreferrer', text: j.title,
+      onclick: (e) => e.stopPropagation() }) : el('span', { text: j.title });
+    const tr = el('tr', { class: j.selected ? 'selected' : '' },
+      el('td', {}, cb),
+      el('td', { class: 'title' }, title,
+        j.employment_type || j.tags.length ? el('div', { class: 'sub', text: [j.employment_type, ...j.tags].filter(Boolean).join(' · ') }) : null),
+      el('td', { text: j.company }),
+      el('td', { class: 'hide-sm', text: (j.location || '—') + (j.remote ? ' · 원격' : '') }),
+      el('td', { class: 'hide-sm sub', text: j.source }),
+      el('td', { class: 'sub', text: j.posted_at || j.first_seen }),
+      el('td', {}, statusBadge(j)));
+    tr.addEventListener('click', () => openDetail(j));
+    return tr;
+  }
+  let current = [];
+  function renderTable() {
+    current = filtered();
+    const body = $('rows');
+    body.replaceChildren(...current.slice(0, state.shown).map(row));
+    $('empty').hidden = current.length > 0;
+    if (!current.length && state.jobs.length) {
+      const hiddenByStatus = state.f.status !== 'all'
+        ? state.jobs.filter(j => matches(j, 'status')).length : 0;
+      $('empty').textContent = hiddenByStatus
+        ? `조건에 맞는 공고 ${hiddenByStatus}건이 '${state.f.status === 'passed' ? '통과' : '걸러짐'}' 보기에서 빠져 있습니다. 위의 '전체'를 선택하면 보입니다.`
+        : '조건에 맞는 공고가 없습니다.';
+    }
+    $('more').hidden = current.length <= state.shown;
+    $('more').textContent = `더 보기 (${Math.min(PAGE, current.length - state.shown)}건 더, 남은 ${current.length - state.shown}건)`;
+    const page = current.slice(0, state.shown);
+    $('pageCheck').checked = page.length > 0 && page.every(j => j.selected);
+    for (const th of document.querySelectorAll('th[data-sort]')) {
+      th.querySelector('.arrow')?.remove();
+      if (th.dataset.sort === state.sort) th.append(el('span', { class: 'arrow', text: state.dir > 0 ? ' ▲' : ' ▼' }));
+    }
+    const sel = state.jobs.filter(j => j.selected).length;
+    $('counts').replaceChildren('표시 ', el('b', { text: current.length.toLocaleString() }),
+      ` / 전체 ${state.jobs.length.toLocaleString()} · 선택 `, el('b', { text: sel.toLocaleString() }));
+    $('hint').replaceChildren(...(sel ? ['다음 단계: ', el('code', { text: 'jobpilot match --selected' }), ' → ', el('code', { text: 'jobpilot cv --selected' }), ' → ',
+      el('code', { text: 'jobpilot apply --selected' })] : ['체크한 공고는 저장되어 터미널에서 사용할 수 있습니다.']));
+  }
+
+  function syncControls() {
+    const f = state.f;
+    $('q').value = f.q;
+    for (const r of document.querySelectorAll('input[name=status]')) r.checked = r.value === f.status;
+    $('loc').value = f.loc; $('remote').checked = f.remote; $('age').value = String(f.age);
+    $('score').value = f.score; $('onlySel').checked = f.onlySel;
+    $('reasonBox').hidden = f.status === 'passed';
+  }
+  function refresh(keepPage) {
+    if (!keepPage) state.shown = PAGE;
+    persist(); syncControls();
+    facet('reasons', 'reasons', j => j.filter_reason ? reasonKind(j.filter_reason) : null, v => v, 'reasons');
+    facet('sources', 'sources', j => j.source, v => v, 'sources');
+    renderCompanies();
+    facet('apps', 'apps', j => j.application || 'none', v => APP_LABEL[v] || v, 'apps');
+    renderTable();
+  }
+
+  // ---- selection ----
+  async function select(list, on) {
+    const uids = list.map(j => j.uid);
+    const prev = list.map(j => j.selected);
+    list.forEach(j => j.selected = on);
+    refresh(true);
+    try {
+      const r = await fetch('/api/select', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uids, selected: on }) });
+      if (!r.ok) throw new Error(r.status);
+    } catch (e) {
+      list.forEach((j, i) => j.selected = prev[i]);
+      refresh(true);
+      toast('선택을 저장하지 못했습니다. jobpilot serve가 실행 중인지 확인하세요.');
+    }
+  }
+
+  // ---- detail drawer ----
+  async function openDetail(j) {
+    $('dTitle').textContent = `${j.title} · ${j.company}`;
+    const body = $('dBody'); body.replaceChildren(el('p', { class: 'sub', text: '불러오는 중…' }));
+    $('drawer').classList.add('open'); $('drawer').setAttribute('aria-hidden', 'false');
+    let d = null;
+    try { const r = await fetch('/api/job?uid=' + encodeURIComponent(j.uid)); if (r.ok) d = await r.json(); } catch (e) {}
+    const links = [];
+    if (safeUrl(j.url)) links.push(el('a', { href: j.url, target: '_blank', rel: 'noopener noreferrer', text: '공고 열기' }));
+    if (j.has_cv) links.push(' · ', el('a', { href: '/cv?uid=' + encodeURIComponent(j.uid), target: '_blank', rel: 'noopener', text: '맞춤 CV 보기' }));
+    if (safeUrl(j.apply_url) && j.apply_url !== j.url)
+      links.push(' · ', el('a', { href: j.apply_url, target: '_blank', rel: 'noopener noreferrer', text: '지원 페이지' }));
+    const cb = el('button', { type: 'button', class: j.selected ? '' : 'primary', text: j.selected ? '선택 해제' : '이 공고 선택',
+      onclick: () => { select([j], !j.selected); openDetail(j); } });
+    const kids = [
+      el('p', {}, ...links),
+      el('p', { class: 'sub', text: [j.location, j.remote ? '원격' : '', j.source, j.posted_at && ('게시 ' + j.posted_at)].filter(Boolean).join(' · ') }),
+      el('p', {}, statusBadge(j), ' ', cb),
+    ];
+    if (d && (d.salary_min || d.salary_max))
+      kids.push(el('p', { text: `연봉: ${d.salary_min ?? '?'} – ${d.salary_max ?? '?'} ${d.salary_currency || ''}` }));
+    if (d && d.match) {
+      const m = d.match;
+      kids.push(el('h4', { text: `Claude 평가: ${m.score}점 (${m.verdict})` }), el('p', { text: m.summary }));
+      const list = (title, items) => items && items.length ? [el('strong', { text: title }), el('ul', {}, ...items.map(x => el('li', { text: x })))] : [];
+      kids.push(...list('강점', m.matched_strengths), ...list('부족한 점', m.gaps), ...list('결격 사유', m.dealbreakers));
+    }
+    kids.push(el('h4', { text: '공고 내용' }), el('div', { class: 'desc', text: (d && d.description) || '내용 없음' }));
+    body.replaceChildren(...kids);
+  }
+  const closeDrawer = () => { $('drawer').classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true'); };
+
+  // ---- CSV export ----
+  function exportCsv() {
+    const sel = state.jobs.filter(j => j.selected);
+    if (!sel.length) return toast('선택한 공고가 없습니다.');
+    const cols = ['title', 'company', 'location', 'source', 'posted_at', 'score', 'filter_reason', 'application', 'url', 'uid'];
+    const q = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+    const csv = '﻿' + [cols.join(','), ...sel.map(j => cols.map(c => q(j[c])).join(','))].join('\n');
+    const a = el('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'jobpilot-selected.csv' });
+    document.body.append(a); a.click(); a.remove();
+  }
+
+  // ---- wiring ----
+  let qTimer;
+  $('q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.f.q = $('q').value.trim(); refresh(); }, 150); });
+  for (const r of document.querySelectorAll('input[name=status]'))
+    r.addEventListener('change', () => { state.f.status = r.value; refresh(); });
+  $('loc').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.f.loc = $('loc').value; refresh(); }, 200); });
+  $('remote').addEventListener('change', () => { state.f.remote = $('remote').checked; refresh(); });
+  $('age').addEventListener('change', () => { state.f.age = +$('age').value; refresh(); });
+  $('score').addEventListener('change', () => { state.f.score = $('score').value; refresh(); });
+  $('onlySel').addEventListener('change', () => { state.f.onlySel = $('onlySel').checked; refresh(); });
+  $('companyQ').addEventListener('input', renderCompanies);
+  $('companyQ').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const first = [...$('companies').querySelectorAll('input')].find(i => !i.checked);
+    if (first) { first.checked = true; first.dispatchEvent(new Event('change')); }
+  });
+  $('reset').addEventListener('click', () => {
+    state.f = { q: '', status: 'passed', reasons: [], sources: [], companies: [], loc: '', remote: false,
+      age: 0, score: 'any', apps: [], onlySel: false };
+    $('companyQ').value = ''; refresh();
+  });
+  $('more').addEventListener('click', () => { state.shown += PAGE; renderTable(); });
+  $('selAll').addEventListener('click', () => {
+    const list = current.filter(j => !j.selected);
+    if (list.length > 300 && !confirm(`${list.length}개 공고를 선택할까요?`)) return;
+    if (list.length) select(list, true);
+  });
+  $('unselAll').addEventListener('click', () => { const l = current.filter(j => j.selected); if (l.length) select(l, false); });
+  $('pageCheck').addEventListener('change', () => {
+    const page = current.slice(0, state.shown); select(page, $('pageCheck').checked);
+  });
+  $('export').addEventListener('click', exportCsv);
+  $('dClose').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+  $('filtersToggle').addEventListener('click', () => $('filters').classList.toggle('open'));
+  for (const th of document.querySelectorAll('th[data-sort]'))
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (state.sort === k) state.dir = -state.dir; else { state.sort = k; state.dir = k === 'posted' || k === 'score' ? -1 : 1; }
+      refresh(true);
+    });
+
+  fetch('/api/jobs').then(r => r.json()).then(data => {
+    state.jobs = data.jobs || [];
+    refresh();
+    if (!state.jobs.length) $('empty').textContent = '수집된 공고가 없습니다. 터미널에서 jobpilot search를 먼저 실행하세요.';
+  }).catch(() => { $('counts').textContent = '공고를 불러오지 못했습니다. jobpilot serve가 실행 중인지 확인하세요.'; });
+})();
+</script>
+</body>
+</html>

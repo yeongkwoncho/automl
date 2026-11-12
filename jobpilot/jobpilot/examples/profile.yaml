@@ -1,0 +1,44 @@
+# Everything here may be used in applications. Claude is instructed to use
+# only these facts, so keep them accurate. `jobpilot import-resume` can
+# generate this file from your resume.
+first_name: Jane
+last_name: Doe
+email: jane@example.com
+phone: "+82 10-0000-0000"
+location: Seoul, South Korea
+linkedin: https://www.linkedin.com/in/janedoe
+github: https://github.com/janedoe
+website: ""
+headline: Senior ML Engineer, computer vision & model efficiency
+summary: >-
+  7 years building and shipping deep learning models for vision and
+  on-device inference.
+years_experience: 7
+skills: [Python, PyTorch, TensorFlow, JAX, Kubernetes, CUDA]
+languages: [Korean (native), English (professional)]
+experience:
+  - company: Example Corp
+    title: Senior ML Engineer
+    start: 2021-03
+    end: present
+    highlights:
+      - Led EfficientDet-based detection model serving 20M requests/day.
+education:
+  - school: Example University
+    degree: M.S.
+    field: Computer Science
+    end: "2018"
+work_authorization:
+  KR: citizen
+  US: requires visa sponsorship
+resume_path: resume.pdf     # uploaded to application forms
+resume_text: ""             # optional: full resume text for better grounding
+# Canned answers; a key matches any form field whose label contains it.
+# Work-authorization questions are answered by Claude from
+# work_authorization above, per the job's country.
+answers:
+  notice period: 1 month
+  salary expectation: Negotiable, based on total compensation for the level
+  how did you hear: Company careers page
+# Voluntary self-identification. Leave empty to always pick "decline".
+eeo: {}

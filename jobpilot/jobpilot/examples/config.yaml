@@ -1,0 +1,74 @@
+# JobPilot configuration. Paths are relative to this file.
+profile: profile.yaml
+database: jobpilot.db
+output_dir: applications
+
+# What you are looking for. The rule-based prefilter uses these before any
+# LLM call; Claude then scores the remaining jobs against your profile.
+preferences:
+  titles: [Machine Learning Engineer, ML Engineer, Applied Scientist]
+  keywords: [MLOps, Computer Vision]
+  exclude_keywords: [intern, internship, unpaid]
+  locations: [Seoul, Singapore, Remote]
+  remote_ok: true
+  onsite_ok: true
+  seniority: [senior, staff]
+  min_salary: null
+  salary_currency: USD
+  exclude_companies: []
+  max_job_age_days: 30
+  notes: Prefer product companies; open to relocation within APAC.
+
+llm:
+  model: claude-opus-5
+  match_effort: medium   # scoring runs on many jobs
+  tailor_effort: high    # cover letters / answers
+  max_workers: 4
+
+apply:
+  # dry_run: only write application packets to output_dir (nothing is sent)
+  # review:  open a browser, fill the form, you confirm every submit
+  # auto:    submit unattended on Greenhouse/Lever/Ashby when every required
+  #          field is filled and there is no CAPTCHA; else leave for you
+  mode: dry_run
+  min_score: 75
+  max_per_day: 10
+  company_cooldown_days: 30
+  delay_seconds: 45
+  headless: false
+  tailor_cv: true          # write a position-specific CV and upload it instead of the master
+
+# Companies: JobPilot's built-in list (jobpilot/catalog.yaml: Anthropic,
+# Stripe, OpenAI, KLA, Micron, NVIDIA, Intel, Applied Materials, Qualcomm,
+# Apple, ...) is merged in automatically and grows with `git pull`.
+# Add companies of your own under `sources:`; skip built-in ones here:
+catalog_exclude: []        # e.g. [Apple, airbnb]
+# catalog: false           # use only the companies listed below
+
+sources:
+  # Your own extra companies (same format as jobpilot/catalog.yaml):
+  #   greenhouse: {boards: [<slug from boards.greenhouse.io/<slug>>]}
+  #   lever:      {boards: [<slug from jobs.lever.co/<slug>>]}
+  #   ashby:      {boards: [<slug from jobs.ashbyhq.com/<slug>>]}
+  #   recruitee:  {boards: [<slug from <slug>.recruitee.com>]}
+  #   pinpoint:   {boards: [<slug from <slug>.pinpointhq.com>]}
+  #   workday:    {sites: [{url: "https://<co>.wd1.myworkdayjobs.com/<Site>", company: <Name>}]}
+  #   eightfold:  {sites: [{url: "https://careers.<co>.com", domain: <co>.com, company: <Name>}]}
+  # Check new entries with `jobpilot check-boards`.
+  #
+  # Not readable yet (own sites or other systems): AMD, Lam Research,
+  # Samsung, SK hynix, TSMC, Google, Meta, ASML, Nova (Comeet), Onto
+  # Innovation, Camtek, Nearfield Instruments, Zeiss SMT, Bruker, Lasertec,
+  # Park Systems, Auros Technology, Nextin.
+  # Aggregators.
+  remotive: {enabled: true}
+  remoteok: {enabled: true}
+  arbeitnow: {enabled: false}
+  # Free key from https://developer.adzuna.com
+  adzuna:
+    countries: [us, gb, sg]
+    app_id_env: ADZUNA_APP_ID
+    app_key_env: ADZUNA_APP_KEY
+  # Key from https://oapi.saramin.co.kr
+  # saramin:
+  #   access_key_env: SARAMIN_ACCESS_KEY
